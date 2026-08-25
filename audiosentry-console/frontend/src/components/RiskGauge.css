@@ -1,0 +1,119 @@
+.risk-gauge-container {
+  border-radius: 32px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.risk-gauge-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 256px;
+  height: 256px;
+  background-color: rgba(186, 26, 26, 0.05); /* error with opacity */
+  border-radius: 50%;
+  filter: blur(24px);
+}
+
+.risk-dial {
+  position: relative;
+  width: 256px;
+  height: 256px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.risk-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  padding: 16px;
+}
+
+.risk-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+
+.risk-svg-bg {
+  fill: none;
+  stroke: var(--color-surface-container-highest);
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+
+.risk-svg-value {
+  fill: none;
+  stroke: url(#risk-gradient);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 289;
+  filter: url(#neo-arc-shadow);
+  transition: stroke-dashoffset 1s ease-out;
+}
+
+.risk-hub {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.risk-badge {
+  background-color: rgba(186, 26, 26, 0.1);
+  color: var(--color-error);
+  padding: 4px 12px;
+  border-radius: var(--rounded-full);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.risk-indicators {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 40px;
+  z-index: 10;
+  padding: 0 16px;
+}
+
+.risk-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.risk-indicator-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.risk-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
