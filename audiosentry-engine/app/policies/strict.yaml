@@ -1,0 +1,7 @@
+name: strict
+description: "High-value transfers, CXO/privileged-account requests"
+layer1_escalation_threshold: 40
+fusion_thresholds:
+  require_mfa_stepup: 45
+  initiate_callback: 55
+  freeze_transaction_escalate_supervisor: 65

@@ -1,0 +1,7 @@
+name: lenient
+description: "Standard balance inquiries, low-risk lookups"
+layer1_escalation_threshold: 75
+fusion_thresholds:
+  require_mfa_stepup: 70
+  initiate_callback: 80
+  freeze_transaction_escalate_supervisor: 90

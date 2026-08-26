@@ -1,0 +1,7 @@
+name: balanced
+description: "Credential resets, mid-tier account changes"
+layer1_escalation_threshold: 60
+fusion_thresholds:
+  require_mfa_stepup: 55
+  initiate_callback: 65
+  freeze_transaction_escalate_supervisor: 75
