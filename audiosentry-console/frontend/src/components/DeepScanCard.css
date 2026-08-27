@@ -1,0 +1,58 @@
+.deep-scan-card {
+  border-radius: var(--rounded-xl);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dsc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dsc-score-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--rounded-full);
+}
+
+.dsc-content {
+  border-radius: var(--rounded-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dsc-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-surface-variant);
+}
+
+.dsc-detail-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.dsc-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.dsc-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--rounded-full);
+  font-size: var(--font-label-md-size);
+  font-weight: var(--font-label-md-weight);
+}

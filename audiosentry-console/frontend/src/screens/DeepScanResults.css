@@ -1,0 +1,43 @@
+.dsr-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-card-gap);
+}
+
+.dsr-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dsr-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 32px;
+  border-radius: var(--rounded-full);
+}
+
+.dsr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: var(--spacing-card-gap);
+}
+
+.dsr-summary {
+  padding: 32px;
+  border-radius: var(--rounded-xl);
+  margin-top: 16px;
+}
+
+.dsr-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.dsr-actions button {
+  padding: 12px 32px;
+  border-radius: var(--rounded-full);
+  font-size: var(--font-label-md-size);
+  font-weight: var(--font-label-md-weight);
+}
