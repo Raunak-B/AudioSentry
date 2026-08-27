@@ -1,10 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { MoreVertical, Gavel, User, MicOff, Ban, ShieldAlert, BrainCircuit } from 'lucide-react';
 import { RiskGauge } from '../components/RiskGauge';
+import { useRiskStream } from '../hooks/useRiskStream';
 import './LiveCallMonitor.css';
 
 export function LiveCallMonitor() {
   const transcriptRef = useRef(null);
+
+  // 1. Invoke the live WebSocket hook
+  const { risk_score } = useRiskStream("test-call-123");
 
   useEffect(() => {
     if (transcriptRef.current) {
@@ -45,14 +49,16 @@ export function LiveCallMonitor() {
       <div className="lcm-grid">
         {/* Left Column */}
         <div className="lcm-col-left">
-          <RiskGauge score={72} riskLevel="Critical" />
-          
+
+          {/* 2. Replace hardcoded 72 with the live risk_score variable */}
+          <RiskGauge score={risk_score || 0} riskLevel="Critical" />
+
           <div className="lcm-caller-card neo-raised">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-label-md uppercase tracking-widest text-on-surface">Caller Identity</h3>
               <User className="text-on-surface-variant" size={20} />
             </div>
-            
+
             <div className="lcm-caller-profile mb-6">
               <div className="lcm-caller-avatar neo-inset">
                 <div className="lcm-avatar-inner text-on-surface-variant">
@@ -64,7 +70,7 @@ export function LiveCallMonitor() {
                 <p className="text-body-md text-on-surface-variant">Customer since 2018</p>
               </div>
             </div>
-            
+
             <div className="lcm-caller-stats">
               <div className="lcm-stat-box neo-inset">
                 <p className="text-label-sm text-on-surface-variant mb-1">Auth Method</p>
@@ -102,12 +108,12 @@ export function LiveCallMonitor() {
 
           <div className="lcm-transcript-body neo-inset" ref={transcriptRef}>
             <span className="lcm-watermark text-display-lg">CONFIDENTIAL</span>
-            
+
             <div className="lcm-messages z-10 relative space-y-6">
               <div className="flex justify-center mb-4">
                 <span className="lcm-sys-event text-label-sm">Call connected at 14:02:11 PST</span>
               </div>
-              
+
               {/* Agent Bubble */}
               <div className="lcm-msg lcm-agent">
                 <div className="lcm-msg-avatar neo-raised text-on-surface-variant"><User size={20} /></div>
@@ -147,14 +153,14 @@ export function LiveCallMonitor() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Typing indicator */}
-              <div className="lcm-msg lcm-agent" style={{opacity: 0.5}}>
+              <div className="lcm-msg lcm-agent" style={{ opacity: 0.5 }}>
                 <div className="lcm-msg-avatar neo-raised text-on-surface-variant"><User size={20} /></div>
                 <div className="lcm-bubble lcm-bubble-agent flex gap-1 items-center">
                   <div className="lcm-dot"></div>
-                  <div className="lcm-dot" style={{animationDelay: '100ms'}}></div>
-                  <div className="lcm-dot" style={{animationDelay: '200ms'}}></div>
+                  <div className="lcm-dot" style={{ animationDelay: '100ms' }}></div>
+                  <div className="lcm-dot" style={{ animationDelay: '200ms' }}></div>
                 </div>
               </div>
             </div>
