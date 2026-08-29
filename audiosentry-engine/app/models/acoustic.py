@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 from transformers import Wav2Vec2Model
 
 class BaselineAcousticClassifier(nn.Module):
@@ -50,3 +51,45 @@ class BaselineAcousticClassifier(nn.Module):
         logits = self.classifier_head(pooled_output)
         
         return logits
+
+
+# --- Added Wrapper Logic for main.py Integration ---
+
+# Global singleton instance to avoid reloading the model on every single audio chunk
+_model = None
+
+def get_classifier():
+    global _model
+    if _model is None:
+        _model = BaselineAcousticClassifier()
+        _model.eval()
+    return _model
+
+def classify(waveform_input) -> float:
+    """
+    Wrapper function expected by main.py. 
+    Accepts a 1D numpy array (or tensor) waveform and returns a risk score between 0 and 100.
+    """
+    model = get_classifier()
+    
+    # main.py passes waveform.squeeze().numpy(), so we convert it back to a torch tensor
+    if isinstance(waveform_input, np.ndarray):
+        waveform_tensor = torch.from_numpy(waveform_input)
+    else:
+        waveform_tensor = waveform_input
+        
+    # Ensure dtype is float32 for the model
+    waveform_tensor = waveform_tensor.float()
+    
+    # Ensure the tensor has a batch dimension of 1: shape (1, sequence_length)
+    if waveform_tensor.dim() == 1:
+        waveform_tensor = waveform_tensor.unsqueeze(0)
+        
+    with torch.no_grad():
+        logits = model(waveform_tensor)
+        # Apply sigmoid to convert logit to a probability between 0 and 1
+        probability = torch.sigmoid(logits).item()
+        
+    # Scale to a 0-100 risk score
+    risk_score = round(probability * 100, 1)
+    return risk_score
