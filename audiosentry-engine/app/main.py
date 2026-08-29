@@ -1,9 +1,12 @@
 import asyncio
-import random
-from fastapi import FastAPI, WebSocket
+import io
+import torchaudio
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api import risk, deepscan, enroll, analyze, override
+from app.models.acoustic import classify
+from app.models.policy import load_policy
 
 app = FastAPI(title="AudioSentry Engine")
 
@@ -28,18 +31,22 @@ def health_check():
 @app.websocket("/stream/{call_id}")
 async def websocket_endpoint(websocket: WebSocket, call_id: str):
     await websocket.accept()
-    risk_score = 10
+    
+    policy = load_policy("balanced")
+    threshold = policy.get("layer1_escalation_threshold", 60)
+
     try:
         while True:
-            # Week 1 Days 3-5: replace with real Layer 1 model output
-            layer2_triggered = risk_score > 60
+            audio_bytes = await websocket.receive_bytes()
+            waveform, sample_rate = torchaudio.load(io.BytesIO(audio_bytes))
+            risk_score = classify(waveform.squeeze().numpy())
+            
+            layer2_triggered = risk_score >= threshold
+            
             await websocket.send_json({
                 "call_id": call_id,
                 "risk_score": risk_score,
                 "layer2_triggered": layer2_triggered
             })
-            
-            risk_score = min(100, risk_score + random.randint(5, 15))
-            await asyncio.sleep(2)
-    except Exception:
+    except WebSocketDisconnect:
         pass
