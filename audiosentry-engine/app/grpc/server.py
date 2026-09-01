@@ -24,10 +24,13 @@ class VoiceIntegrityService(pb2_grpc.VoiceIntegrityServiceServicer):
 
     def StreamAudio(self, request_iterator, context):
         for chunk in request_iterator:
-            # Mock Layer 1 output until Week 1 Days 3-5
             score = 47
+             
             yield pb2.RiskUpdate(
-                call_id=chunk.call_id, risk_score=score, layer2_triggered=score > 60
+                call_id=chunk.call_id, 
+                risk_score=score, 
+                layer2_triggered=score > 60,
+                transcript_fragment=chunk.transcript_fragment 
             )
 
     def Enroll(self, request, context):
