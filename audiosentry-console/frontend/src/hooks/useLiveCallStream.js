@@ -4,11 +4,14 @@ const ENGINE_WS_URL = import.meta.env.VITE_ENGINE_WS_URL || "ws://localhost:8000
 
 export function useLiveCallStream(callId) {
     const [risk, setRisk] = useState({ risk_score: 0, layer2_triggered: false });
+    const [transcriptBuffer, setTranscriptBuffer] = useState("");
     const [isStreaming, setIsStreaming] = useState(false);
+    const [connectionState, setConnectionState] = useState("connecting"); // connecting, connected, reconnecting, disconnected
 
     const wsRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const audioStreamRef = useRef(null);
+    const reconnectAttempt = useRef(0);
 
     // 1. Maintain WebSocket Connection for Risk Updates[cite: 1]
     useEffect(() => {
@@ -16,13 +19,24 @@ export function useLiveCallStream(callId) {
         let cancelled = false;
 
         function connect() {
+            if (cancelled) return;
+            setConnectionState(reconnectAttempt.current === 0 ? "connecting" : "reconnecting");
             const ws = new WebSocket(`${ENGINE_WS_URL}/stream/${callId}`);
             wsRef.current = ws;
+
+            ws.onopen = () => {
+                if (cancelled) return;
+                setConnectionState("connected");
+                reconnectAttempt.current = 0; // reset on success
+            };
 
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
                     setRisk(data);
+                    if (data.transcript) {
+                        setTranscriptBuffer(prev => prev + data.transcript + " ");
+                    }
                 } catch (err) {
                     console.error("Failed to parse risk payload:", err);
                 }
@@ -30,7 +44,11 @@ export function useLiveCallStream(callId) {
 
             ws.onerror = (err) => console.error("Risk stream WS error:", err);
             ws.onclose = () => {
-                if (!cancelled) setTimeout(connect, 1500); // Auto-reconnect fallback[cite: 1]
+                if (cancelled) return;
+                setConnectionState("disconnected");
+                const backoff = Math.min(1000 * Math.pow(2, reconnectAttempt.current), 10000);
+                reconnectAttempt.current += 1;
+                setTimeout(connect, backoff);
             };
         }
 
@@ -98,5 +116,7 @@ export function useLiveCallStream(callId) {
         isStreaming,
         startStreaming,
         stopStreaming,
+        transcriptBuffer,
+        connectionState,
     };
 }

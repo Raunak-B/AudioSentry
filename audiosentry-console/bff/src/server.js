@@ -15,6 +15,18 @@ app.use(express.json());
 // Shape: call_id -> { status, current_risk, policy_profile, transcript_buffer }
 const sessions = new Map();
 
+export function initializeSession(callId, initialData = {}) {
+    const session = {
+        status: "active",
+        current_risk: 0,
+        policy_profile: "balanced",
+        transcript_buffer: "",
+        ...initialData
+    };
+    sessions.set(callId, session);
+    return session;
+}
+
 // --- Week 2, Days 6-8: BFF Session State Management ---
 app.post("/api/session/init", (req, res) => {
     const { callId, accountId = "ACC-1001" } = req.body;
@@ -31,12 +43,9 @@ app.post("/api/session/init", (req, res) => {
         }
     }
 
-    sessions.set(callId, {
-        status: "active",
-        current_risk: 0,
+    initializeSession(callId, {
         policy_profile: policyProfile,
         accountId: accountId,
-        transcript_buffer: "",
     });
 
     console.log(`Session initialized for call: ${callId} with policy: ${policyProfile}`);
