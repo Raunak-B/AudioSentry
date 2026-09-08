@@ -5,5 +5,1167 @@
 // source: voice_integrity.proto
 
 /* eslint-disable */
+import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
+import { Observable } from "rxjs";
+import { map } from "rxjs/operators";
 
-export const protobufPackage = "";
+export const protobufPackage = "audiosentry";
+
+export enum RecommendedAction {
+  APPROVE = 0,
+  REQUIRE_MFA_STEPUP = 1,
+  INITIATE_CALLBACK = 2,
+  FREEZE_TRANSACTION_ESCALATE_SUPERVISOR = 3,
+  UNRECOGNIZED = -1,
+}
+
+export function recommendedActionFromJSON(object: any): RecommendedAction {
+  switch (object) {
+    case 0:
+    case "APPROVE":
+      return RecommendedAction.APPROVE;
+    case 1:
+    case "REQUIRE_MFA_STEPUP":
+      return RecommendedAction.REQUIRE_MFA_STEPUP;
+    case 2:
+    case "INITIATE_CALLBACK":
+      return RecommendedAction.INITIATE_CALLBACK;
+    case 3:
+    case "FREEZE_TRANSACTION_ESCALATE_SUPERVISOR":
+      return RecommendedAction.FREEZE_TRANSACTION_ESCALATE_SUPERVISOR;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return RecommendedAction.UNRECOGNIZED;
+  }
+}
+
+export function recommendedActionToJSON(object: RecommendedAction): string {
+  switch (object) {
+    case RecommendedAction.APPROVE:
+      return "APPROVE";
+    case RecommendedAction.REQUIRE_MFA_STEPUP:
+      return "REQUIRE_MFA_STEPUP";
+    case RecommendedAction.INITIATE_CALLBACK:
+      return "INITIATE_CALLBACK";
+    case RecommendedAction.FREEZE_TRANSACTION_ESCALATE_SUPERVISOR:
+      return "FREEZE_TRANSACTION_ESCALATE_SUPERVISOR";
+    case RecommendedAction.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+export interface AudioChunk {
+  callId: string;
+  audioData: Uint8Array;
+  timestampMs: number;
+}
+
+export interface RiskUpdate {
+  callId: string;
+  riskScore: number;
+  layer2Triggered: boolean;
+  /** NEW FIELD */
+  transcriptFragment: string;
+}
+
+export interface AudioFile {
+  audioData: Uint8Array;
+  metadataJson: string;
+}
+
+export interface EnrollmentRequest {
+  callerId: string;
+  audioData: Uint8Array;
+}
+
+export interface EnrollmentAck {
+  status: string;
+  callerId: string;
+}
+
+export interface DeepScanRequest {
+  callId: string;
+  metadataJson: string;
+}
+
+export interface OverrideRequest {
+  callId: string;
+  reason: string;
+  agentId: string;
+}
+
+export interface OverrideAck {
+  status: string;
+  callId: string;
+}
+
+export interface RiskResult {
+  riskScore: number;
+  reason: string;
+  recommendedAction: RecommendedAction;
+  /** raw PNG bytes; REST/WS encode this as base64 instead */
+  heatmapPng: Uint8Array;
+}
+
+function createBaseAudioChunk(): AudioChunk {
+  return { callId: "", audioData: new Uint8Array(0), timestampMs: 0 };
+}
+
+export const AudioChunk: MessageFns<AudioChunk> = {
+  encode(message: AudioChunk, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.callId !== "") {
+      writer.uint32(10).string(message.callId);
+    }
+    if (message.audioData.length !== 0) {
+      writer.uint32(18).bytes(message.audioData);
+    }
+    if (message.timestampMs !== 0) {
+      writer.uint32(24).int64(message.timestampMs);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AudioChunk {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAudioChunk();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.callId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.audioData = reader.bytes();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.timestampMs = longToNumber(reader.int64());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AudioChunk {
+    return {
+      callId: isSet(object.callId)
+        ? globalThis.String(object.callId)
+        : isSet(object.call_id)
+        ? globalThis.String(object.call_id)
+        : "",
+      audioData: isSet(object.audioData)
+        ? bytesFromBase64(object.audioData)
+        : isSet(object.audio_data)
+        ? bytesFromBase64(object.audio_data)
+        : new Uint8Array(0),
+      timestampMs: isSet(object.timestampMs)
+        ? globalThis.Number(object.timestampMs)
+        : isSet(object.timestamp_ms)
+        ? globalThis.Number(object.timestamp_ms)
+        : 0,
+    };
+  },
+
+  toJSON(message: AudioChunk): unknown {
+    const obj: any = {};
+    if (message.callId !== "") {
+      obj.callId = message.callId;
+    }
+    if (message.audioData.length !== 0) {
+      obj.audioData = base64FromBytes(message.audioData);
+    }
+    if (message.timestampMs !== 0) {
+      obj.timestampMs = Math.round(message.timestampMs);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<AudioChunk>, I>>(base?: I): AudioChunk {
+    return AudioChunk.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<AudioChunk>, I>>(object: I): AudioChunk {
+    const message = createBaseAudioChunk();
+    message.callId = object.callId ?? "";
+    message.audioData = object.audioData ?? new Uint8Array(0);
+    message.timestampMs = object.timestampMs ?? 0;
+    return message;
+  },
+};
+
+function createBaseRiskUpdate(): RiskUpdate {
+  return { callId: "", riskScore: 0, layer2Triggered: false, transcriptFragment: "" };
+}
+
+export const RiskUpdate: MessageFns<RiskUpdate> = {
+  encode(message: RiskUpdate, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.callId !== "") {
+      writer.uint32(10).string(message.callId);
+    }
+    if (message.riskScore !== 0) {
+      writer.uint32(16).int32(message.riskScore);
+    }
+    if (message.layer2Triggered !== false) {
+      writer.uint32(24).bool(message.layer2Triggered);
+    }
+    if (message.transcriptFragment !== "") {
+      writer.uint32(34).string(message.transcriptFragment);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RiskUpdate {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRiskUpdate();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.callId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.riskScore = reader.int32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.layer2Triggered = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.transcriptFragment = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RiskUpdate {
+    return {
+      callId: isSet(object.callId)
+        ? globalThis.String(object.callId)
+        : isSet(object.call_id)
+        ? globalThis.String(object.call_id)
+        : "",
+      riskScore: isSet(object.riskScore)
+        ? globalThis.Number(object.riskScore)
+        : isSet(object.risk_score)
+        ? globalThis.Number(object.risk_score)
+        : 0,
+      layer2Triggered: isSet(object.layer2Triggered)
+        ? globalThis.Boolean(object.layer2Triggered)
+        : isSet(object.layer2_triggered)
+        ? globalThis.Boolean(object.layer2_triggered)
+        : false,
+      transcriptFragment: isSet(object.transcriptFragment)
+        ? globalThis.String(object.transcriptFragment)
+        : isSet(object.transcript_fragment)
+        ? globalThis.String(object.transcript_fragment)
+        : "",
+    };
+  },
+
+  toJSON(message: RiskUpdate): unknown {
+    const obj: any = {};
+    if (message.callId !== "") {
+      obj.callId = message.callId;
+    }
+    if (message.riskScore !== 0) {
+      obj.riskScore = Math.round(message.riskScore);
+    }
+    if (message.layer2Triggered !== false) {
+      obj.layer2Triggered = message.layer2Triggered;
+    }
+    if (message.transcriptFragment !== "") {
+      obj.transcriptFragment = message.transcriptFragment;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RiskUpdate>, I>>(base?: I): RiskUpdate {
+    return RiskUpdate.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RiskUpdate>, I>>(object: I): RiskUpdate {
+    const message = createBaseRiskUpdate();
+    message.callId = object.callId ?? "";
+    message.riskScore = object.riskScore ?? 0;
+    message.layer2Triggered = object.layer2Triggered ?? false;
+    message.transcriptFragment = object.transcriptFragment ?? "";
+    return message;
+  },
+};
+
+function createBaseAudioFile(): AudioFile {
+  return { audioData: new Uint8Array(0), metadataJson: "" };
+}
+
+export const AudioFile: MessageFns<AudioFile> = {
+  encode(message: AudioFile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.audioData.length !== 0) {
+      writer.uint32(10).bytes(message.audioData);
+    }
+    if (message.metadataJson !== "") {
+      writer.uint32(18).string(message.metadataJson);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AudioFile {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAudioFile();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.audioData = reader.bytes();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.metadataJson = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AudioFile {
+    return {
+      audioData: isSet(object.audioData)
+        ? bytesFromBase64(object.audioData)
+        : isSet(object.audio_data)
+        ? bytesFromBase64(object.audio_data)
+        : new Uint8Array(0),
+      metadataJson: isSet(object.metadataJson)
+        ? globalThis.String(object.metadataJson)
+        : isSet(object.metadata_json)
+        ? globalThis.String(object.metadata_json)
+        : "",
+    };
+  },
+
+  toJSON(message: AudioFile): unknown {
+    const obj: any = {};
+    if (message.audioData.length !== 0) {
+      obj.audioData = base64FromBytes(message.audioData);
+    }
+    if (message.metadataJson !== "") {
+      obj.metadataJson = message.metadataJson;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<AudioFile>, I>>(base?: I): AudioFile {
+    return AudioFile.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<AudioFile>, I>>(object: I): AudioFile {
+    const message = createBaseAudioFile();
+    message.audioData = object.audioData ?? new Uint8Array(0);
+    message.metadataJson = object.metadataJson ?? "";
+    return message;
+  },
+};
+
+function createBaseEnrollmentRequest(): EnrollmentRequest {
+  return { callerId: "", audioData: new Uint8Array(0) };
+}
+
+export const EnrollmentRequest: MessageFns<EnrollmentRequest> = {
+  encode(message: EnrollmentRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.callerId !== "") {
+      writer.uint32(10).string(message.callerId);
+    }
+    if (message.audioData.length !== 0) {
+      writer.uint32(18).bytes(message.audioData);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): EnrollmentRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseEnrollmentRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.callerId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.audioData = reader.bytes();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): EnrollmentRequest {
+    return {
+      callerId: isSet(object.callerId)
+        ? globalThis.String(object.callerId)
+        : isSet(object.caller_id)
+        ? globalThis.String(object.caller_id)
+        : "",
+      audioData: isSet(object.audioData)
+        ? bytesFromBase64(object.audioData)
+        : isSet(object.audio_data)
+        ? bytesFromBase64(object.audio_data)
+        : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: EnrollmentRequest): unknown {
+    const obj: any = {};
+    if (message.callerId !== "") {
+      obj.callerId = message.callerId;
+    }
+    if (message.audioData.length !== 0) {
+      obj.audioData = base64FromBytes(message.audioData);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<EnrollmentRequest>, I>>(base?: I): EnrollmentRequest {
+    return EnrollmentRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<EnrollmentRequest>, I>>(object: I): EnrollmentRequest {
+    const message = createBaseEnrollmentRequest();
+    message.callerId = object.callerId ?? "";
+    message.audioData = object.audioData ?? new Uint8Array(0);
+    return message;
+  },
+};
+
+function createBaseEnrollmentAck(): EnrollmentAck {
+  return { status: "", callerId: "" };
+}
+
+export const EnrollmentAck: MessageFns<EnrollmentAck> = {
+  encode(message: EnrollmentAck, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.status !== "") {
+      writer.uint32(10).string(message.status);
+    }
+    if (message.callerId !== "") {
+      writer.uint32(18).string(message.callerId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): EnrollmentAck {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseEnrollmentAck();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.status = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.callerId = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): EnrollmentAck {
+    return {
+      status: isSet(object.status) ? globalThis.String(object.status) : "",
+      callerId: isSet(object.callerId)
+        ? globalThis.String(object.callerId)
+        : isSet(object.caller_id)
+        ? globalThis.String(object.caller_id)
+        : "",
+    };
+  },
+
+  toJSON(message: EnrollmentAck): unknown {
+    const obj: any = {};
+    if (message.status !== "") {
+      obj.status = message.status;
+    }
+    if (message.callerId !== "") {
+      obj.callerId = message.callerId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<EnrollmentAck>, I>>(base?: I): EnrollmentAck {
+    return EnrollmentAck.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<EnrollmentAck>, I>>(object: I): EnrollmentAck {
+    const message = createBaseEnrollmentAck();
+    message.status = object.status ?? "";
+    message.callerId = object.callerId ?? "";
+    return message;
+  },
+};
+
+function createBaseDeepScanRequest(): DeepScanRequest {
+  return { callId: "", metadataJson: "" };
+}
+
+export const DeepScanRequest: MessageFns<DeepScanRequest> = {
+  encode(message: DeepScanRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.callId !== "") {
+      writer.uint32(10).string(message.callId);
+    }
+    if (message.metadataJson !== "") {
+      writer.uint32(18).string(message.metadataJson);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DeepScanRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDeepScanRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.callId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.metadataJson = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DeepScanRequest {
+    return {
+      callId: isSet(object.callId)
+        ? globalThis.String(object.callId)
+        : isSet(object.call_id)
+        ? globalThis.String(object.call_id)
+        : "",
+      metadataJson: isSet(object.metadataJson)
+        ? globalThis.String(object.metadataJson)
+        : isSet(object.metadata_json)
+        ? globalThis.String(object.metadata_json)
+        : "",
+    };
+  },
+
+  toJSON(message: DeepScanRequest): unknown {
+    const obj: any = {};
+    if (message.callId !== "") {
+      obj.callId = message.callId;
+    }
+    if (message.metadataJson !== "") {
+      obj.metadataJson = message.metadataJson;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DeepScanRequest>, I>>(base?: I): DeepScanRequest {
+    return DeepScanRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DeepScanRequest>, I>>(object: I): DeepScanRequest {
+    const message = createBaseDeepScanRequest();
+    message.callId = object.callId ?? "";
+    message.metadataJson = object.metadataJson ?? "";
+    return message;
+  },
+};
+
+function createBaseOverrideRequest(): OverrideRequest {
+  return { callId: "", reason: "", agentId: "" };
+}
+
+export const OverrideRequest: MessageFns<OverrideRequest> = {
+  encode(message: OverrideRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.callId !== "") {
+      writer.uint32(10).string(message.callId);
+    }
+    if (message.reason !== "") {
+      writer.uint32(18).string(message.reason);
+    }
+    if (message.agentId !== "") {
+      writer.uint32(26).string(message.agentId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): OverrideRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseOverrideRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.callId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.reason = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.agentId = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): OverrideRequest {
+    return {
+      callId: isSet(object.callId)
+        ? globalThis.String(object.callId)
+        : isSet(object.call_id)
+        ? globalThis.String(object.call_id)
+        : "",
+      reason: isSet(object.reason) ? globalThis.String(object.reason) : "",
+      agentId: isSet(object.agentId)
+        ? globalThis.String(object.agentId)
+        : isSet(object.agent_id)
+        ? globalThis.String(object.agent_id)
+        : "",
+    };
+  },
+
+  toJSON(message: OverrideRequest): unknown {
+    const obj: any = {};
+    if (message.callId !== "") {
+      obj.callId = message.callId;
+    }
+    if (message.reason !== "") {
+      obj.reason = message.reason;
+    }
+    if (message.agentId !== "") {
+      obj.agentId = message.agentId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<OverrideRequest>, I>>(base?: I): OverrideRequest {
+    return OverrideRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<OverrideRequest>, I>>(object: I): OverrideRequest {
+    const message = createBaseOverrideRequest();
+    message.callId = object.callId ?? "";
+    message.reason = object.reason ?? "";
+    message.agentId = object.agentId ?? "";
+    return message;
+  },
+};
+
+function createBaseOverrideAck(): OverrideAck {
+  return { status: "", callId: "" };
+}
+
+export const OverrideAck: MessageFns<OverrideAck> = {
+  encode(message: OverrideAck, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.status !== "") {
+      writer.uint32(10).string(message.status);
+    }
+    if (message.callId !== "") {
+      writer.uint32(18).string(message.callId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): OverrideAck {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseOverrideAck();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.status = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.callId = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): OverrideAck {
+    return {
+      status: isSet(object.status) ? globalThis.String(object.status) : "",
+      callId: isSet(object.callId)
+        ? globalThis.String(object.callId)
+        : isSet(object.call_id)
+        ? globalThis.String(object.call_id)
+        : "",
+    };
+  },
+
+  toJSON(message: OverrideAck): unknown {
+    const obj: any = {};
+    if (message.status !== "") {
+      obj.status = message.status;
+    }
+    if (message.callId !== "") {
+      obj.callId = message.callId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<OverrideAck>, I>>(base?: I): OverrideAck {
+    return OverrideAck.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<OverrideAck>, I>>(object: I): OverrideAck {
+    const message = createBaseOverrideAck();
+    message.status = object.status ?? "";
+    message.callId = object.callId ?? "";
+    return message;
+  },
+};
+
+function createBaseRiskResult(): RiskResult {
+  return { riskScore: 0, reason: "", recommendedAction: 0, heatmapPng: new Uint8Array(0) };
+}
+
+export const RiskResult: MessageFns<RiskResult> = {
+  encode(message: RiskResult, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.riskScore !== 0) {
+      writer.uint32(8).int32(message.riskScore);
+    }
+    if (message.reason !== "") {
+      writer.uint32(18).string(message.reason);
+    }
+    if (message.recommendedAction !== 0) {
+      writer.uint32(24).int32(message.recommendedAction);
+    }
+    if (message.heatmapPng.length !== 0) {
+      writer.uint32(34).bytes(message.heatmapPng);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RiskResult {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRiskResult();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.riskScore = reader.int32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.reason = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.recommendedAction = reader.int32() as any;
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.heatmapPng = reader.bytes();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RiskResult {
+    return {
+      riskScore: isSet(object.riskScore)
+        ? globalThis.Number(object.riskScore)
+        : isSet(object.risk_score)
+        ? globalThis.Number(object.risk_score)
+        : 0,
+      reason: isSet(object.reason) ? globalThis.String(object.reason) : "",
+      recommendedAction: isSet(object.recommendedAction)
+        ? recommendedActionFromJSON(object.recommendedAction)
+        : isSet(object.recommended_action)
+        ? recommendedActionFromJSON(object.recommended_action)
+        : 0,
+      heatmapPng: isSet(object.heatmapPng)
+        ? bytesFromBase64(object.heatmapPng)
+        : isSet(object.heatmap_png)
+        ? bytesFromBase64(object.heatmap_png)
+        : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: RiskResult): unknown {
+    const obj: any = {};
+    if (message.riskScore !== 0) {
+      obj.riskScore = Math.round(message.riskScore);
+    }
+    if (message.reason !== "") {
+      obj.reason = message.reason;
+    }
+    if (message.recommendedAction !== 0) {
+      obj.recommendedAction = recommendedActionToJSON(message.recommendedAction);
+    }
+    if (message.heatmapPng.length !== 0) {
+      obj.heatmapPng = base64FromBytes(message.heatmapPng);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RiskResult>, I>>(base?: I): RiskResult {
+    return RiskResult.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RiskResult>, I>>(object: I): RiskResult {
+    const message = createBaseRiskResult();
+    message.riskScore = object.riskScore ?? 0;
+    message.reason = object.reason ?? "";
+    message.recommendedAction = object.recommendedAction ?? 0;
+    message.heatmapPng = object.heatmapPng ?? new Uint8Array(0);
+    return message;
+  },
+};
+
+export interface VoiceIntegrityService {
+  StreamAudio(request: Observable<AudioChunk>): Observable<RiskUpdate>;
+  AnalyzeFile(request: AudioFile): Promise<RiskResult>;
+  Enroll(request: EnrollmentRequest): Promise<EnrollmentAck>;
+  DeepScan(request: DeepScanRequest): Promise<RiskResult>;
+  Override(request: OverrideRequest): Promise<OverrideAck>;
+}
+
+export const VoiceIntegrityServiceServiceName = "audiosentry.VoiceIntegrityService";
+export class VoiceIntegrityServiceClientImpl implements VoiceIntegrityService {
+  private readonly rpc: Rpc;
+  private readonly service: string;
+  constructor(rpc: Rpc, opts?: { service?: string }) {
+    this.service = opts?.service || VoiceIntegrityServiceServiceName;
+    this.rpc = rpc;
+    this.StreamAudio = this.StreamAudio.bind(this);
+    this.AnalyzeFile = this.AnalyzeFile.bind(this);
+    this.Enroll = this.Enroll.bind(this);
+    this.DeepScan = this.DeepScan.bind(this);
+    this.Override = this.Override.bind(this);
+  }
+  StreamAudio(request: Observable<AudioChunk>): Observable<RiskUpdate> {
+    const data = request.pipe(map((request) => AudioChunk.encode(request).finish()));
+    const result = this.rpc.bidirectionalStreamingRequest(this.service, "StreamAudio", data);
+    return result.pipe(map((data) => RiskUpdate.decode(new BinaryReader(data))));
+  }
+
+  AnalyzeFile(request: AudioFile): Promise<RiskResult> {
+    const data = AudioFile.encode(request).finish();
+    const promise = this.rpc.request(this.service, "AnalyzeFile", data);
+    return promise.then((data) => RiskResult.decode(new BinaryReader(data)));
+  }
+
+  Enroll(request: EnrollmentRequest): Promise<EnrollmentAck> {
+    const data = EnrollmentRequest.encode(request).finish();
+    const promise = this.rpc.request(this.service, "Enroll", data);
+    return promise.then((data) => EnrollmentAck.decode(new BinaryReader(data)));
+  }
+
+  DeepScan(request: DeepScanRequest): Promise<RiskResult> {
+    const data = DeepScanRequest.encode(request).finish();
+    const promise = this.rpc.request(this.service, "DeepScan", data);
+    return promise.then((data) => RiskResult.decode(new BinaryReader(data)));
+  }
+
+  Override(request: OverrideRequest): Promise<OverrideAck> {
+    const data = OverrideRequest.encode(request).finish();
+    const promise = this.rpc.request(this.service, "Override", data);
+    return promise.then((data) => OverrideAck.decode(new BinaryReader(data)));
+  }
+}
+
+interface Rpc {
+  request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;
+  clientStreamingRequest(service: string, method: string, data: Observable<Uint8Array>): Promise<Uint8Array>;
+  serverStreamingRequest(service: string, method: string, data: Uint8Array): Observable<Uint8Array>;
+  bidirectionalStreamingRequest(service: string, method: string, data: Observable<Uint8Array>): Observable<Uint8Array>;
+}
+
+function bytesFromBase64(b64: string): Uint8Array {
+  if ((globalThis as any).Buffer) {
+    return Uint8Array.from((globalThis as any).Buffer.from(b64, "base64"));
+  } else {
+    const bin = globalThis.atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; ++i) {
+      arr[i] = bin.charCodeAt(i);
+    }
+    return arr;
+  }
+}
+
+function base64FromBytes(arr: Uint8Array): string {
+  if ((globalThis as any).Buffer) {
+    return (globalThis as any).Buffer.from(arr).toString("base64");
+  } else {
+    const bin: string[] = [];
+    arr.forEach((byte) => {
+      bin.push(globalThis.String.fromCharCode(byte));
+    });
+    return globalThis.btoa(bin.join(""));
+  }
+}
+
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
+  : Partial<T>;
+
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+export type Exact<P, I extends P> = P extends Builtin ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
+
+function longToNumber(int64: { toString(): string }): number {
+  const num = globalThis.Number(int64.toString());
+  if (num > globalThis.Number.MAX_SAFE_INTEGER) {
+    throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
+  }
+  if (num < globalThis.Number.MIN_SAFE_INTEGER) {
+    throw new globalThis.Error("Value is smaller than Number.MIN_SAFE_INTEGER");
+  }
+  return num;
+}
+
+function isSet(value: any): boolean {
+  return value !== null && value !== undefined;
+}
+
+export interface MessageFns<T> {
+  encode(message: T, writer?: BinaryWriter): BinaryWriter;
+  decode(input: BinaryReader | Uint8Array, length?: number): T;
+  fromJSON(object: any): T;
+  toJSON(message: T): unknown;
+  create<I extends Exact<DeepPartial<T>, I>>(base?: I): T;
+  fromPartial<I extends Exact<DeepPartial<T>, I>>(object: I): T;
+}

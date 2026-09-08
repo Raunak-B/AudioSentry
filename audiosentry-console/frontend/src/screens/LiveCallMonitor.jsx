@@ -30,7 +30,9 @@ export function LiveCallMonitor({ onRunDeepScan }) {
     layer2_triggered,
     isStreaming,
     startStreaming,
-    stopStreaming
+    stopStreaming,
+    transcriptBuffer,
+    connectionState
   } = useLiveCallStream(callId);
 
   useEffect(() => {
@@ -40,9 +42,9 @@ export function LiveCallMonitor({ onRunDeepScan }) {
           top: transcriptRef.current.scrollHeight,
           behavior: 'smooth'
         });
-      }, 500);
+      }, 100);
     }
-  }, []);
+  }, [transcriptBuffer]);
 
   async function handleSendTestAlert() {
     setAlertSending(true);
@@ -134,6 +136,12 @@ export function LiveCallMonitor({ onRunDeepScan }) {
       <div className="lcm-grid">
         {/* Left Column: Risk Gauge & Identity */}
         <div className="lcm-col-left">
+          {connectionState === 'reconnecting' && (
+            <div className="neo-inset px-3 py-2 mb-4 text-center text-label-sm text-error font-bold flex items-center justify-center gap-2" style={{ animation: 'pulse 2s infinite' }}>
+              <ShieldAlert size={16} />
+              Reconnecting... (Stale Risk Score)
+            </div>
+          )}
           <RiskGauge
             score={risk_score || 0}
             riskLevel={layer2_triggered || risk_score > 60 ? "Critical" : "Normal"}
@@ -208,55 +216,30 @@ export function LiveCallMonitor({ onRunDeepScan }) {
                 <span className="lcm-sys-event text-label-sm">Call connected at 14:02:11 PST</span>
               </div>
 
-              {/* Agent Bubble */}
-              <div className="lcm-msg lcm-agent">
-                <div className="lcm-msg-avatar neo-raised text-on-surface-variant"><User size={20} /></div>
-                <div className="lcm-msg-content">
-                  <span className="text-label-sm text-on-surface-variant ml-2 mb-1 block">Agent Sarah</span>
-                  <div className="lcm-bubble lcm-bubble-agent text-body-md text-on-surface">
-                    Thank you for calling Platinum Support. Am I speaking with Michael Chen?
+              {/* Dynamic Live Transcript */}
+              {transcriptBuffer && (
+                <div className="lcm-msg lcm-agent">
+                  <div className="lcm-msg-avatar neo-raised text-on-surface-variant"><BrainCircuit size={20} /></div>
+                  <div className="lcm-msg-content" style={{ width: '100%' }}>
+                    <span className="text-label-sm text-on-surface-variant ml-2 mb-1 block">Live Feed</span>
+                    <div className="lcm-bubble lcm-bubble-agent text-body-md text-on-surface" style={{ whiteSpace: 'pre-wrap' }}>
+                      {transcriptBuffer}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Customer Bubble */}
-              <div className="lcm-msg lcm-customer flex-row-reverse">
-                <div className="lcm-msg-avatar neo-raised text-on-surface-variant"><User size={20} /></div>
-                <div className="lcm-msg-content items-end">
-                  <span className="text-label-sm text-on-surface-variant mr-2 mb-1 block">Caller</span>
-                  <div className="lcm-bubble lcm-bubble-customer neo-raised text-body-md text-on-surface text-right">
-                    Yes, this is Michael. I need to push a wire transfer through immediately. It's urgent.
+              {/* Streaming Indicator */}
+              {isStreaming && (
+                <div className="lcm-msg lcm-agent" style={{ opacity: 0.5 }}>
+                  <div className="lcm-msg-avatar neo-raised text-on-surface-variant"><User size={20} /></div>
+                  <div className="lcm-bubble lcm-bubble-agent flex gap-1 items-center">
+                    <div className="lcm-dot"></div>
+                    <div className="lcm-dot" style={{ animationDelay: '100ms' }}></div>
+                    <div className="lcm-dot" style={{ animationDelay: '200ms' }}></div>
                   </div>
                 </div>
-              </div>
-
-              {/* Customer Bubble with Risk Flag */}
-              <div className="lcm-msg lcm-customer flex-row-reverse">
-                <div className="lcm-msg-avatar lcm-avatar-alert text-error"><ShieldAlert size={20} /></div>
-                <div className="lcm-msg-content items-end">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="lcm-risk-tag bg-error text-on-error">High Stress Detected</span>
-                    <span className="text-label-sm text-on-surface-variant">Caller</span>
-                  </div>
-                  <div className="lcm-bubble lcm-bubble-customer lcm-bubble-alert neo-raised text-body-md text-on-surface text-right">
-                    Look, I don't have time for this. I verified in the app. Just authorize the $45,000 transfer to the account I just added.
-                  </div>
-                  <div className="lcm-inline-analysis text-error">
-                    <BrainCircuit size={14} />
-                    <span className="text-label-sm">Urgency tactic & new payee mentioned</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Agent Typing Indicator */}
-              <div className="lcm-msg lcm-agent" style={{ opacity: 0.5 }}>
-                <div className="lcm-msg-avatar neo-raised text-on-surface-variant"><User size={20} /></div>
-                <div className="lcm-bubble lcm-bubble-agent flex gap-1 items-center">
-                  <div className="lcm-dot"></div>
-                  <div className="lcm-dot" style={{ animationDelay: '100ms' }}></div>
-                  <div className="lcm-dot" style={{ animationDelay: '200ms' }}></div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 

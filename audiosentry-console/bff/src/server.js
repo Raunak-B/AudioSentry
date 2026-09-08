@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { sendSmsAlert, sendSlackAlert } from "./alerts.js";
+import { lookupAccount } from "./mockCrm.js";
 
 dotenv.config();
 
@@ -14,20 +15,41 @@ app.use(express.json());
 // Shape: call_id -> { status, current_risk, policy_profile, transcript_buffer }
 const sessions = new Map();
 
-// --- Week 2, Days 6-8: BFF Session State Management ---
-app.post("/session/init", (req, res) => {
-    const { call_id, account_id } = req.body;
-
-    sessions.set(call_id, {
+export function initializeSession(callId, initialData = {}) {
+    const session = {
         status: "active",
         current_risk: 0,
         policy_profile: "balanced",
-        accountId: account_id,
         transcript_buffer: "",
+        ...initialData
+    };
+    sessions.set(callId, session);
+    return session;
+}
+
+// --- Week 2, Days 6-8: BFF Session State Management ---
+app.post("/api/session/init", (req, res) => {
+    const { callId, accountId = "ACC-1001" } = req.body;
+
+    const account = lookupAccount(accountId);
+    let policyProfile = "lenient";
+    
+    if (account && account.transaction_context) {
+        const { privilege_escalation, transfer_value } = account.transaction_context;
+        if (privilege_escalation === true || transfer_value > 100000) {
+            policyProfile = "strict";
+        } else if (transfer_value > 1000) {
+            policyProfile = "balanced";
+        }
+    }
+
+    initializeSession(callId, {
+        policy_profile: policyProfile,
+        accountId: accountId,
     });
 
-    console.log(`Session initialized for call: ${call_id}`);
-    res.json({ status: "initialized", call_id });
+    console.log(`Session initialized for call: ${callId} with policy: ${policyProfile}`);
+    res.json({ status: "initialized", callId, policy_profile: policyProfile });
 });
 
 app.get("/session/:call_id", (req, res) => {
