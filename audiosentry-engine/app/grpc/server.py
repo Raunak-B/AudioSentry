@@ -8,6 +8,7 @@ import base64
 import torch
 import torch.nn as nn
 import logging
+import json
 
 
 from app.grpc import voice_integrity_pb2 as pb2
@@ -29,8 +30,9 @@ class VoiceIntegrityService(pb2_grpc.VoiceIntegrityServiceServicer):
             return "Low risk", "APPROVE"
 
     def AnalyzeFile(self, request, context):
-        score = fusion_engine.predict_risk(liveness_score=85.0, speaker_similarity=0.92)
-        reason, action = self._map_risk(score)
+        features = json.loads(request.metadata_json) if request.metadata_json else {}
+        result = fusion_engine.predict_risk(features=features, policy=load_policy("strict"))
+        score, reason, action = result["risk_score"], result["reason"], result["recommended_action"]
         
         response_kwargs = {
             "risk_score": int(score),
@@ -64,8 +66,9 @@ class VoiceIntegrityService(pb2_grpc.VoiceIntegrityServiceServicer):
         return pb2.EnrollmentAck(status="enrolled", caller_id=request.caller_id)
 
     def DeepScan(self, request, context):
-        score = fusion_engine.predict_risk(liveness_score=85.0, speaker_similarity=0.92)
-        reason, action = self._map_risk(score)
+        features = json.loads(request.metadata_json) if request.metadata_json else {}
+        result = fusion_engine.predict_risk(features=features, policy=load_policy("strict"))
+        score, reason, action = result["risk_score"], result["reason"], result["recommended_action"]
         
         response_kwargs = {
             "risk_score": int(score),
