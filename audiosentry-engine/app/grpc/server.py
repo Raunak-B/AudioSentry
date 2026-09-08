@@ -7,6 +7,7 @@ from concurrent import futures
 import base64
 import torch
 import torch.nn as nn
+import logging
 
 
 from app.grpc import voice_integrity_pb2 as pb2
@@ -56,7 +57,7 @@ class VoiceIntegrityService(pb2_grpc.VoiceIntegrityServiceServicer):
                     transcript_fragment=chunk.transcript_fragment 
                 )
             except Exception as e:
-                print(f"Warning: Dropped malformed audio chunk - {e}")
+                logging.warning(f"Dropped malformed audio chunk - {e}")
                 continue
 
     def Enroll(self, request, context):
