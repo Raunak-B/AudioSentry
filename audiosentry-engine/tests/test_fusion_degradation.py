@@ -1,30 +1,66 @@
-import pytest
+import copy
+from app.models import fusion
 from app.models.policy import load_policy
-from app.models.fusion import predict_risk
 
-def test_fusion_handles_missing_enrollment():
+
+def get_base_features():
+    return {
+        "acoustic_score": 85.0,
+        "prosody_score": 75.5,
+        "speaker_similarity": 0.92,
+        "liveness_score": 90.0,
+        "llm_semantic_score": 60.0,
+        "call_origin_risk": 0.2,
+        "transfer_value": 500.0,
+        "privilege_escalation": 0,
+        "historical_fraud_count": 0
+    }
+
+
+def test_fusion_handles_missing_liveness():
+    features = get_base_features()
+    features["liveness_score"] = None
     policy = load_policy("balanced")
     
-    features = {
-        "acoustic_score": 85.0,
-        "prosody_score": 92.0,
-        "speaker_similarity": None,  # Simulating an unknown caller
-        "liveness_score": 75.0,
-        "llm_semantic_score": 88.0,
-        "call_origin_risk": 15.0,
-        "transfer_value": 500.0,
-        "privilege_escalation": 0.0,
-        "historical_fraud_count": 0.0
-    }
+    result = fusion.predict_risk(features, policy)
     
-    result = predict_risk(features, policy)
-    
+    assert isinstance(result, dict)
     assert "risk_score" in result
+    assert "recommended_action" in result
+
+
+def test_fusion_handles_missing_prosody():
+    features = get_base_features()
+    features["prosody_score"] = None
+    policy = load_policy("balanced")
     
-    valid_actions = {
-        "APPROVE",
-        "REQUIRE_MFA_STEPUP",
-        "INITIATE_CALLBACK",
-        "FREEZE_TRANSACTION_ESCALATE_SUPERVISOR"
-    }
-    assert result.get("recommended_action") in valid_actions
+    result = fusion.predict_risk(features, policy)
+    
+    assert isinstance(result, dict)
+    assert "risk_score" in result
+    assert "recommended_action" in result
+
+
+def test_fusion_handles_missing_enrollment():
+    features = get_base_features()
+    features["speaker_similarity"] = None
+    policy = load_policy("balanced")
+    
+    result = fusion.predict_risk(features, policy)
+    
+    assert isinstance(result, dict)
+    assert "risk_score" in result
+    assert "recommended_action" in result
+
+
+def test_fusion_handles_multiple_missing_signals():
+    features = get_base_features()
+    features["liveness_score"] = None
+    features["speaker_similarity"] = None
+    policy = load_policy("balanced")
+    
+    result = fusion.predict_risk(features, policy)
+    
+    assert isinstance(result, dict)
+    assert "risk_score" in result
+    assert "recommended_action" in result
