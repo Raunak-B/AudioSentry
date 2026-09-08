@@ -40,9 +40,9 @@ class VoiceIntegrityService(pb2_grpc.VoiceIntegrityServiceServicer):
             "recommended_action": getattr(pb2.RecommendedAction, action),
         }
         
-        if action == "FREEZE_TRANSACTION_ESCALATE_SUPERVISOR":
+        if score > 60:
             heatmap_b64 = generate_heatmap(dummy_model, dummy_tensor)
-            heatmap_bytes = base64.b64decode(heatmap_b64.replace("data:image/png;base64,", ""))
+            heatmap_bytes = base64.b64decode(heatmap_b64.split(",")[1])
             response_kwargs["heatmap_png"] = heatmap_bytes
             
         return pb2.RiskResult(**response_kwargs)
@@ -76,9 +76,9 @@ class VoiceIntegrityService(pb2_grpc.VoiceIntegrityServiceServicer):
             "recommended_action": getattr(pb2.RecommendedAction, action),
         }
         
-        if action == "FREEZE_TRANSACTION_ESCALATE_SUPERVISOR":
+        if score > 60:
             heatmap_b64 = generate_heatmap(dummy_model, dummy_tensor)
-            heatmap_bytes = base64.b64decode(heatmap_b64.replace("data:image/png;base64,", ""))
+            heatmap_bytes = base64.b64decode(heatmap_b64.split(",")[1])
             response_kwargs["heatmap_png"] = heatmap_bytes
             
         return pb2.RiskResult(**response_kwargs)
