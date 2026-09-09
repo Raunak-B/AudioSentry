@@ -60,10 +60,15 @@ app.get("/session/:call_id", (req, res) => {
 
 // --- Week 1, Days 3-5: Manual Test Alert Route ---
 app.post("/test-alert", async (req, res) => {
-    const testMessage = "TEST: AudioSentry manual alert triggered.";
+    const callId = req.body.call_id || "UNKNOWN";
+    const session = sessions.get(callId);
+    const riskScore = session ? session.current_risk : "N/A";
+    const reason = "Manual test alert triggered via console.";
+    
+    const testMessage = `TEST: AudioSentry manual alert triggered for ${callId} (Risk: ${riskScore}).`;
 
     console.log("Dispatching manual test alerts...");
-    await sendSlackAlert(testMessage);
+    await sendSlackAlert(callId, riskScore, reason);
 
     if (process.env.ALERT_PHONE_NUMBER) {
         await sendSmsAlert(process.env.ALERT_PHONE_NUMBER, testMessage);
