@@ -21,8 +21,31 @@ export function LiveCallMonitor({ onRunDeepScan }) {
   const transcriptRef = useRef(null);
   const [alertSending, setAlertSending] = useState(false);
   const [alertStatus, setAlertStatus] = useState(null);
+  const [policyProfile, setPolicyProfile] = useState("Loading...");
 
-  const callId = "CALL-9911";
+  const callId = "ACC-1001";
+
+  useEffect(() => {
+    async function fetchSession() {
+      try {
+        let res = await fetch(`${BFF_HTTP_URL}/session/${callId}`);
+        if (res.status === 404) {
+          res = await fetch(`${BFF_HTTP_URL}/api/session/init`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callId, accountId: callId })
+          });
+        }
+        if (res.ok) {
+          const data = await res.json();
+          setPolicyProfile(data.policy_profile || "Unknown");
+        }
+      } catch (err) {
+        console.error("Failed to fetch session policy:", err);
+      }
+    }
+    fetchSession();
+  }, [callId]);
 
   // Unified WebRTC audio transmission + WebSocket risk updates[cite: 1, 3]
   const {
@@ -122,8 +145,12 @@ export function LiveCallMonitor({ onRunDeepScan }) {
           <div className="lcm-policy-badge neo-raised">
             <span className="text-label-sm text-on-surface-variant tracking-widest">POLICY TIER</span>
             <div className="lcm-policy-inner">
-              <Gavel size={16} color="var(--color-error)" />
-              <span className="text-label-md text-on-surface">Strict Enforcement</span>
+              <Gavel size={16} color={
+                policyProfile === 'strict' ? 'var(--color-error)' :
+                  policyProfile === 'balanced' ? 'var(--color-warning, #f59e0b)' :
+                    policyProfile === 'lenient' ? 'var(--color-success, #34a853)' : 'var(--color-on-surface)'
+              } />
+              <span className="text-label-md text-on-surface capitalize">{policyProfile} Enforcement</span>
             </div>
           </div>
 
