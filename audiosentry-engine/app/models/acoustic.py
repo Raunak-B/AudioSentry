@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import numpy as np
@@ -53,26 +54,32 @@ class BaselineAcousticClassifier(nn.Module):
         return logits
 
 
-# --- Added Wrapper Logic for main.py Integration ---
+# --- Wrapper Logic for main.py & Testing Integration ---
 
 # Global singleton instance to avoid reloading the model on every single audio chunk
 _model = None
+_WEIGHTS_PATH = "weights/acoustic_head.pt"
 
 def get_classifier():
     global _model
     if _model is None:
         _model = BaselineAcousticClassifier()
+        if os.path.exists(_WEIGHTS_PATH):
+            _model.classifier_head.load_state_dict(torch.load(_WEIGHTS_PATH, weights_only=True))
+            print("Loaded trained acoustic head weights.")
+        else:
+            print("Warning: No trained weights found. Outputting random predictions.")
         _model.eval()
     return _model
 
-def classify(waveform_input) -> float:
+def classify(waveform_input, sample_rate: int = 16000) -> float:
     """
-    Wrapper function expected by main.py. 
+    Wrapper function expected by main.py and stress tests. 
     Accepts a 1D numpy array (or tensor) waveform and returns a risk score between 0 and 100.
     """
     model = get_classifier()
     
-    # main.py passes waveform.squeeze().numpy(), so we convert it back to a torch tensor
+    # Convert numpy arrays to torch tensors
     if isinstance(waveform_input, np.ndarray):
         waveform_tensor = torch.from_numpy(waveform_input)
     else:
