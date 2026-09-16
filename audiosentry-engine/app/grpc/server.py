@@ -1,6 +1,8 @@
 import sys
 import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
 
 import grpc
 from concurrent import futures
@@ -14,7 +16,7 @@ import json
 from app.grpc import voice_integrity_pb2 as pb2
 from app.grpc import voice_integrity_pb2_grpc as pb2_grpc
 from app.models.policy import load_policy
-from app.models.fusion import fusion_engine
+from app.models import fusion as fusion_engine
 from app.models.xai import generate_heatmap
 
 dummy_model = nn.Linear(10, 1)
@@ -50,13 +52,15 @@ class VoiceIntegrityService(pb2_grpc.VoiceIntegrityServiceServicer):
     def StreamAudio(self, request_iterator, context):
         for chunk in request_iterator:
             try:
-                score = fusion_engine.predict_risk(liveness_score=85.0, speaker_similarity=None)
+                features = {"liveness_score": 85.0, "speaker_similarity": None}
+                result = fusion_engine.predict_risk(features=features, policy=load_policy("strict"))
+                score = result["risk_score"]
                  
                 yield pb2.RiskUpdate(
                     call_id=chunk.call_id, 
                     risk_score=int(score), 
                     layer2_triggered=score > 60,
-                    transcript_fragment=chunk.transcript_fragment 
+                    transcript_fragment=""
                 )
             except Exception as e:
                 logging.warning(f"Dropped malformed audio chunk - {e}")

@@ -14,8 +14,12 @@ def generate_heatmap(model, mel_spectrogram_tensor) -> str:
     fig = plt.figure(figsize=(6, 3))
     
     # Squeeze tensors to 2D for visualization and convert to numpy
+    import numpy as np
     base_image = mel_spectrogram_tensor.detach().cpu().squeeze().numpy()
     attr_image = attribution.detach().cpu().squeeze().numpy()
+    if base_image.ndim == 1:
+        base_image = base_image[np.newaxis, :]
+        attr_image = attr_image[np.newaxis, :]
     
     # Plot base tensor and overlay attribution
     plt.imshow(base_image, cmap="gray")
