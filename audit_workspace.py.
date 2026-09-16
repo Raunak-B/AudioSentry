@@ -1,0 +1,54 @@
+import os
+import subprocess
+from pathlib import Path
+
+def check_file_contains(filepath: str, target_strings: list) -> list:
+    if not os.path.exists(filepath): return []
+    found = []
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.read().lower()
+        for string in target_strings:
+            if string.lower() in content:
+                found.append(string)
+    return found
+
+def run_audit():
+    print("=== 🔍 AudioSentry Codebase Status Scan ===\n")
+    
+    print("📂 1. Core Service Boundaries:")
+    for d in ["audiosentry-engine", "audiosentry-console", "protos", "docs"]:
+        print(f"  [{'✓' if os.path.exists(d) else '✗'}] {d}/")
+
+    print("\n🧠 2. Engine Model Status (Week 1 & 2):")
+    engine_models = ["acoustic.py", "speaker.py", "liveness.py", "fusion.py", "policy.py"]
+    for m in engine_models:
+        path = f"audiosentry-engine/app/models/{m}"
+        exists = os.path.exists(path)
+        print(f"  [{'✓' if exists else '✗'}] {m}")
+        if exists:
+            mocks = check_file_contains(path, ["placeholder", "mock", "82"])
+            if mocks:
+                print(f"      -> ⚠️ Contains stubs/mocks: {', '.join(mocks)}")
+
+    print("\n🖥️ 3. Console Screen & Hook Status:")
+    frontend_src = Path("audiosentry-console/frontend/src")
+    if frontend_src.exists():
+        print(f"  [{'✓' if (frontend_src / 'hooks/useRiskStream.js').exists() else '✗'}] useRiskStream hook")
+        print(f"  [{'✓' if (frontend_src / 'screens/Enrollment.jsx').exists() else '✗'}] Enrollment screen")
+        print(f"  [{'✓' if (frontend_src / 'screens/LiveCallMonitor.jsx').exists() else '✗'}] Live Call Monitor")
+    else:
+        print("  [✗] Frontend source directory missing")
+
+    print("\n📦 4. Git LFS Tracking Status:")
+    try:
+        lfs_output = subprocess.check_output(["git", "lfs", "ls-files"], text=True)
+        if lfs_output.strip():
+            for line in lfs_output.strip().split('\n'):
+                print(f"  ✓ {line.split()[-1]}")
+        else:
+            print("  ⚠️ No files currently tracked by Git LFS.")
+    except Exception as e:
+        print("  [✗] Git LFS command failed. Is it installed?")
+
+if __name__ == "__main__":
+    run_audit()

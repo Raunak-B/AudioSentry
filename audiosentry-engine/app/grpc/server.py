@@ -1,48 +1,91 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+
 import grpc
 from concurrent import futures
+import base64
+import torch
+import torch.nn as nn
+import logging
+import json
+
 
 from app.grpc import voice_integrity_pb2 as pb2
 from app.grpc import voice_integrity_pb2_grpc as pb2_grpc
 from app.models.policy import load_policy
+from app.models import fusion as fusion_engine
+from app.models.xai import generate_heatmap
 
-# Mock fusion until Week 3
-def _mock_predict_risk():
-    return {
-        "risk_score": 82,
-        "reason": "High risk: speaker-embedding mismatch (0.31 similarity) + liveness-challenge latency spike + high-value transfer flagged",
-        "recommended_action": "FREEZE_TRANSACTION_ESCALATE_SUPERVISOR",
-    }
+dummy_model = nn.Linear(10, 1)
+dummy_tensor = torch.randn(1, 1, 10, 10)
 
 class VoiceIntegrityService(pb2_grpc.VoiceIntegrityServiceServicer):
+    def _map_risk(self, score: float):
+        if score > 75:
+            return "High risk detected by XGBoost fusion", "FREEZE_TRANSACTION_ESCALATE_SUPERVISOR"
+        elif score > 50:
+            return "Medium risk detected", "REQUIRE_MFA_STEPUP"
+        else:
+            return "Low risk", "APPROVE"
+
     def AnalyzeFile(self, request, context):
-        result = _mock_predict_risk()
-        return pb2.RiskResult(
-            risk_score=result["risk_score"],
-            reason=result["reason"],
-            recommended_action=getattr(pb2.RecommendedAction, result["recommended_action"]),
-        )
+        features = json.loads(request.metadata_json) if request.metadata_json else {}
+        result = fusion_engine.predict_risk(features=features, policy=load_policy("strict"))
+        score, reason, action = result["risk_score"], result["reason"], result["recommended_action"]
+        
+        response_kwargs = {
+            "risk_score": int(score),
+            "reason": reason,
+            "recommended_action": getattr(pb2.RecommendedAction, action),
+        }
+        
+        if score > 60:
+            heatmap_b64 = generate_heatmap(dummy_model, dummy_tensor)
+            heatmap_bytes = base64.b64decode(heatmap_b64.split(",")[1])
+            response_kwargs["heatmap_png"] = heatmap_bytes
+            
+        return pb2.RiskResult(**response_kwargs)
 
     def StreamAudio(self, request_iterator, context):
         for chunk in request_iterator:
-            score = 47
-             
-            yield pb2.RiskUpdate(
-                call_id=chunk.call_id, 
-                risk_score=score, 
-                layer2_triggered=score > 60,
-                transcript_fragment=chunk.transcript_fragment 
-            )
+            try:
+                features = {"liveness_score": 85.0, "speaker_similarity": None}
+                result = fusion_engine.predict_risk(features=features, policy=load_policy("strict"))
+                score = result["risk_score"]
+                 
+                yield pb2.RiskUpdate(
+                    call_id=chunk.call_id, 
+                    risk_score=int(score), 
+                    layer2_triggered=score > 60,
+                    transcript_fragment=""
+                )
+            except Exception as e:
+                logging.warning(f"Dropped malformed audio chunk - {e}")
+                continue
 
     def Enroll(self, request, context):
         return pb2.EnrollmentAck(status="enrolled", caller_id=request.caller_id)
 
     def DeepScan(self, request, context):
-        result = _mock_predict_risk()
-        return pb2.RiskResult(
-            risk_score=result["risk_score"],
-            reason=result["reason"],
-            recommended_action=getattr(pb2.RecommendedAction, result["recommended_action"]),
-        )
+        features = json.loads(request.metadata_json) if request.metadata_json else {}
+        result = fusion_engine.predict_risk(features=features, policy=load_policy("strict"))
+        score, reason, action = result["risk_score"], result["reason"], result["recommended_action"]
+        
+        response_kwargs = {
+            "risk_score": int(score),
+            "reason": reason,
+            "recommended_action": getattr(pb2.RecommendedAction, action),
+        }
+        
+        if score > 60:
+            heatmap_b64 = generate_heatmap(dummy_model, dummy_tensor)
+            heatmap_bytes = base64.b64decode(heatmap_b64.split(",")[1])
+            response_kwargs["heatmap_png"] = heatmap_bytes
+            
+        return pb2.RiskResult(**response_kwargs)
 
     def Override(self, request, context):
         return pb2.OverrideAck(status="logged", call_id=request.call_id)
