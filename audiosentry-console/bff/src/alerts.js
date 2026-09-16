@@ -20,15 +20,29 @@ export async function sendSmsAlert(toNumber, message) {
     }
 }
 
-export async function sendSlackAlert(message) {
+export async function sendSlackAlert(callId, riskScore, reason) {
+    if (!process.env.SLACK_WEBHOOK_URL) {
+        console.warn("No SLACK_WEBHOOK_URL set in .env; skipping Slack dispatch.");
+        return null;
+    }
+
     try {
-        return await fetch(process.env.SLACK_WEBHOOK_URL, {
+        const payload = {
+            text: `🚨 *AudioSentry Alert*\n*Call ID:* ${callId}\n*Risk Score:* ${riskScore}\n*Reason:* ${reason}`
+        };
+
+        const response = await fetch(process.env.SLACK_WEBHOOK_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: message }),
+            body: JSON.stringify(payload),
         });
+
+        if (!response.ok) {
+            console.error(`Slack Alert failed with status ${response.status}: ${response.statusText}`);
+        }
+        return response;
     } catch (error) {
-        console.error("Slack Alert failed:", error.message);
+        console.error("Slack Alert failed (gracefully caught):", error.message);
         return null;
     }
 }

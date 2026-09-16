@@ -61,7 +61,8 @@ async def websocket_endpoint(websocket: WebSocket, call_id: str):
             await websocket.send_json({
                 "call_id": call_id,
                 "risk_score": risk_score,
-                "layer2_triggered": layer2_triggered
+                "layer2_triggered": layer2_triggered,
+                "transcript": "I need to authorize a transfer... "
             })
     except WebSocketDisconnect:
         pass
