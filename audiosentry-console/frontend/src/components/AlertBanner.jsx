@@ -5,9 +5,9 @@ import './AlertBanner.css';
 export function AlertBanner({ type = 'info', title, message, onDismiss }) {
   const config = {
     info: { icon: Info, color: 'var(--color-tertiary)', bg: 'var(--color-tertiary-container)' },
-    success: { icon: CheckCircle, color: '#34a853', bg: 'rgba(52, 168, 83, 0.1)' },
-    warning: { icon: AlertTriangle, color: 'var(--color-primary-container)', bg: 'rgba(255, 140, 0, 0.1)' },
-    error: { icon: AlertCircle, color: 'var(--color-error)', bg: 'var(--color-error-container)' }
+    success: { icon: CheckCircle, color: '#16A34A', bg: 'rgba(22, 163, 74, 0.1)' },
+    warning: { icon: AlertTriangle, color: '#D97706', bg: 'rgba(217, 119, 6, 0.1)' },
+    error: { icon: AlertCircle, color: '#DC2626', bg: 'rgba(220, 38, 38, 0.1)' }
   };
 
   const { icon: Icon, color, bg } = config[type] || config.info;

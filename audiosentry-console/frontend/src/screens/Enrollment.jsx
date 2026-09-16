@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, CheckCircle, RefreshCcw, Square, AlertCircle, User } from 'lucide-react';
+import { Mic, CheckCircle, RefreshCcw, Square, AlertCircle, User, ShieldAlert } from 'lucide-react';
 import './Enrollment.css';
 
 const ENGINE_HTTP_URL = import.meta.env.VITE_ENGINE_HTTP_URL || "http://localhost:8000";
@@ -174,7 +174,7 @@ export function Enrollment() {
 
               <div className="enroll-mic-container mx-auto mb-8">
                 <button
-                  className={`enroll-mic-btn ${recording ? 'bg-error text-on-error animate-pulse' : 'neo-raised text-primary'}`}
+                  className={`enroll-mic-btn ${recording ? 'bg-[#DC2626] text-white animate-pulse' : 'neo-raised text-primary'}`}
                   onClick={recording ? stopRecording : startRecording}
                 >
                   {recording ? <Square size={32} /> : <Mic size={32} />}
@@ -186,12 +186,17 @@ export function Enrollment() {
               </p>
 
               {status === "uploading" && (
-                <p className="text-primary mt-4">Extracting embedding and uploading to Engine...</p>
+                <div className="neo-inset p-8 rounded-2xl flex flex-col items-center gap-4 mt-6">
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  <div className="text-label-md text-on-surface-variant font-bold">Uploading to Engine...</div>
+                </div>
               )}
               {status === "error" && (
-                <p className="text-error mt-4 flex items-center justify-center gap-2">
-                  <AlertCircle size={16} /> {errorMessage}
-                </p>
+                <div className="neo-inset p-8 rounded-2xl flex flex-col items-center gap-4 border border-[#DC2626] mt-6">
+                  <ShieldAlert size={32} color="#DC2626" />
+                  <div className="text-label-md text-[#DC2626] font-bold">Enrollment Failed</div>
+                  <p className="text-body-sm text-on-surface-variant">{errorMessage}</p>
+                </div>
               )}
             </div>
           )}
@@ -199,7 +204,7 @@ export function Enrollment() {
           {/* STEP 3: VERIFICATION */}
           {step === 3 && (
             <div className="enroll-step-content text-center">
-              <div className="w-24 h-24 neo-raised rounded-full flex items-center justify-center mx-auto mb-6 text-[#34a853]">
+              <div className="w-24 h-24 neo-raised rounded-full flex items-center justify-center mx-auto mb-6 text-[#16A34A]">
                 <CheckCircle size={48} />
               </div>
               <h3 className="text-headline-md mb-2">Voiceprint Captured</h3>

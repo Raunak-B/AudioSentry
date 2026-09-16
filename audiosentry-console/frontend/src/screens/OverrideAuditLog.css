@@ -50,16 +50,16 @@
 }
 
 .audit-badge-error {
-  background-color: rgba(186, 26, 26, 0.1);
-  color: var(--color-error);
+  background-color: rgba(220, 38, 38, 0.1);
+  color: #DC2626;
 }
 
 .audit-badge-success {
-  background-color: rgba(52, 168, 83, 0.1);
-  color: #34a853;
+  background-color: rgba(22, 163, 74, 0.1);
+  color: #16A34A;
 }
 
 .audit-badge-warning {
-  background-color: rgba(255, 140, 0, 0.1);
-  color: var(--color-primary-container);
+  background-color: rgba(217, 119, 6, 0.1);
+  color: #D97706;
 }

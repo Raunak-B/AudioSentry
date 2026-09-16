@@ -3,6 +3,7 @@ import { Upload, FileAudio, Play, Pause, Trash2 } from 'lucide-react';
 
 export function FileUploadTestMode() {
   const [file, setFile] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -41,6 +42,11 @@ export function FileUploadTestMode() {
             Browse Files
           </button>
         </div>
+      ) : analyzing ? (
+        <div className="neo-inset p-8 rounded-[32px] flex flex-col items-center justify-center min-h-[40vh] gap-4">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-label-md text-on-surface-variant font-bold">Uploading to Engine...</div>
+        </div>
       ) : (
         <div className="neo-raised rounded-[32px] p-8 flex flex-col gap-8">
           <div className="flex items-center justify-between">
@@ -53,7 +59,7 @@ export function FileUploadTestMode() {
                 <p className="text-body-md text-on-surface-variant">Audio / WAV • 4.2 MB</p>
               </div>
             </div>
-            <button className="neo-inset p-3 rounded-full text-error hover:text-on-error hover:bg-error" onClick={() => setFile(null)}>
+            <button className="neo-inset p-3 rounded-full text-[#DC2626] hover:text-white hover:bg-[#DC2626]" onClick={() => setFile(null)}>
               <Trash2 size={20} />
             </button>
           </div>
@@ -69,7 +75,7 @@ export function FileUploadTestMode() {
           </div>
 
           <div className="flex justify-end mt-4">
-            <button className="neo-button-primary px-8 py-3 rounded-full text-label-md">
+            <button className="neo-button-primary px-8 py-3 rounded-full text-label-md" onClick={() => setAnalyzing(true)}>
               Run Analysis
             </button>
           </div>

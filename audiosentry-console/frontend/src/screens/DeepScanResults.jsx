@@ -43,7 +43,10 @@ export function DeepScanResults({ callId = "ACC-1001" }) {
   if (loading) {
     return (
       <div className="dsr-container flex items-center justify-center min-h-[60vh]">
-        <div className="text-xl font-bold text-primary animate-pulse">Running Deep Scan...</div>
+        <div className="neo-inset p-8 rounded-[32px] flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-label-md text-on-surface-variant font-bold">Running Deep Scan...</div>
+        </div>
       </div>
     );
   }
@@ -51,7 +54,11 @@ export function DeepScanResults({ callId = "ACC-1001" }) {
   if (!scanResult) {
     return (
       <div className="dsr-container flex items-center justify-center min-h-[60vh]">
-        <div className="text-xl font-bold text-[var(--color-error)]">Failed to load Deep Scan Results.</div>
+        <div className="neo-inset p-8 rounded-[32px] flex flex-col items-center gap-4 border border-[#DC2626]">
+          <ShieldAlert size={32} color="#DC2626" />
+          <div className="text-label-md text-[#DC2626] font-bold">Failed to load Deep Scan Results</div>
+          <p className="text-body-sm text-on-surface-variant">Please try again.</p>
+        </div>
       </div>
     );
   }
@@ -61,9 +68,9 @@ export function DeepScanResults({ callId = "ACC-1001" }) {
   const signals = scanResult.reason ? scanResult.reason.split(',').map(s => s.trim()).filter(Boolean) : ["No specific signals detected"];
 
   // Risk Tier Colors
-  let actionBg = "#34a853"; // green
-  if (scanResult.recommended_action.includes("FREEZE") || scanResult.recommended_action.includes("ESCALATE")) actionBg = "#ef4444"; // red
-  else if (scanResult.recommended_action.includes("STEPUP") || scanResult.recommended_action.includes("CALLBACK")) actionBg = "#f59e0b"; // amber
+  let actionBg = "#16A34A"; // green
+  if (scanResult.recommended_action.includes("FREEZE") || scanResult.recommended_action.includes("ESCALATE")) actionBg = "#DC2626"; // red
+  else if (scanResult.recommended_action.includes("STEPUP") || scanResult.recommended_action.includes("CALLBACK")) actionBg = "#D97706"; // amber
 
   return (
     <div className="dsr-container" style={{ padding: '0', maxWidth: '100%', border: 'none' }}>
@@ -73,19 +80,19 @@ export function DeepScanResults({ callId = "ACC-1001" }) {
         <section className="w-full">
           <div className="neo-raised p-8 rounded-[32px] bg-surface relative overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.5)' }}>
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-              <div className={`inline-flex items-center gap-2.5 px-4 py-2 neo-inset rounded-full bg-surface ${scanResult.risk_score >= 80 ? 'text-[var(--color-error)]' : scanResult.risk_score >= 50 ? 'text-[var(--color-warning)]' : 'text-[#34a853]'}`}>
-                <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${scanResult.risk_score >= 80 ? 'bg-[var(--color-error)]' : scanResult.risk_score >= 50 ? 'bg-[var(--color-warning)]' : 'bg-[#34a853]'}`}></span>
+              <div className={`inline-flex items-center gap-3 px-4 py-2 neo-inset rounded-full bg-surface ${scanResult.risk_score >= 80 ? 'text-[#DC2626]' : scanResult.risk_score >= 50 ? 'text-[#D97706]' : 'text-[#16A34A]'}`}>
+                <span className={`w-3 h-3 rounded-full animate-pulse ${scanResult.risk_score >= 80 ? 'bg-[#DC2626]' : scanResult.risk_score >= 50 ? 'bg-[#D97706]' : 'bg-[#16A34A]'}`}></span>
                 <span className="font-label-md tracking-wider uppercase font-bold text-xs" style={{ fontSize: '0.85rem' }}>
                   {scanResult.risk_score >= 80 ? 'CRITICAL RISK DETECTED' : scanResult.risk_score >= 50 ? 'ELEVATED RISK' : 'LOW RISK'} — SCORE {scanResult.risk_score}
                 </span>
               </div>
-              <div className="flex items-center gap-2 font-mono text-label-sm text-on-surface-variant neo-inset px-3 py-1.5 rounded-full">
+              <div className="flex items-center gap-2 font-mono text-label-sm text-on-surface-variant neo-inset px-4 py-2 rounded-full">
                 <Fingerprint size={16} className="text-primary" /> Session: <span className="font-bold text-primary">{callId}</span>
               </div>
             </div>
 
-            <div className="flex items-start gap-5">
-              <div className={`w-14 h-14 rounded-2xl neo-inset flex items-center justify-center flex-shrink-0 mt-1 ${scanResult.risk_score >= 80 ? 'text-[var(--color-error)]' : 'text-primary'}`}>
+            <div className="flex items-start gap-6">
+              <div className={`w-14 h-14 rounded-2xl neo-inset flex items-center justify-center flex-shrink-0 mt-1 ${scanResult.risk_score >= 80 ? 'text-[#DC2626]' : 'text-primary'}`}>
                 <AlertTriangle size={32} />
               </div>
               <div className="flex-1 min-w-0">
@@ -111,17 +118,17 @@ export function DeepScanResults({ callId = "ACC-1001" }) {
             </div>
 
             {signals.map((signal, idx) => (
-              <div key={idx} className="neo-raised p-5 rounded-2xl bg-surface relative overflow-hidden transition-all hover:-translate-y-0.5">
-                <div className={`absolute top-0 left-0 w-1.5 h-full ${scanResult.risk_score >= 80 ? 'bg-[var(--color-error)]' : 'bg-primary'}`}></div>
+              <div key={idx} className="neo-raised p-6 rounded-2xl bg-surface relative overflow-hidden transition-all hover:-translate-y-0.5">
+                <div className={`absolute top-0 left-0 w-1 h-full ${scanResult.risk_score >= 80 ? 'bg-[#DC2626]' : 'bg-primary'}`}></div>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-4">
-                    <div className={`w-11 h-11 rounded-xl neo-inset flex items-center justify-center shrink-0 ${scanResult.risk_score >= 80 ? 'text-[var(--color-error)]' : 'text-primary'}`}>
+                    <div className={`w-12 h-12 rounded-xl neo-inset flex items-center justify-center shrink-0 ${scanResult.risk_score >= 80 ? 'text-[#DC2626]' : 'text-primary'}`}>
                       <Search size={20} />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-label-md text-on-surface font-bold">Signal Parameter {idx + 1}</h4>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${scanResult.risk_score >= 80 ? 'bg-[var(--color-error)] text-[var(--color-error)] bg-opacity-10' : 'bg-primary text-primary bg-opacity-10'}`} style={{ backgroundColor: scanResult.risk_score >= 80 ? 'rgba(239,68,68,0.1)' : 'rgba(144,77,0,0.1)' }}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${scanResult.risk_score >= 80 ? 'bg-[#DC2626] text-[#DC2626] bg-opacity-10' : 'bg-primary text-primary bg-opacity-10'}`} style={{ backgroundColor: scanResult.risk_score >= 80 ? 'rgba(220,38,38,0.1)' : 'rgba(144,77,0,0.1)' }}>
                           {scanResult.risk_score >= 80 ? 'Critical' : 'Flagged'}
                         </span>
                       </div>
@@ -151,8 +158,8 @@ export function DeepScanResults({ callId = "ACC-1001" }) {
               <div className="neo-inset rounded-[24px] p-2 bg-surface overflow-hidden relative group min-h-[160px] flex flex-col items-center justify-center">
                 {scanResult.heatmap_png ? (
                   <>
-                    <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-surface/90 backdrop-blur-md rounded-full shadow-sm flex items-center gap-2" style={{ border: '1px solid rgba(255,255,255,0.5)' }}>
-                      <div className="w-2 h-2 rounded-full bg-[var(--color-error)] animate-pulse" style={{ backgroundColor: 'var(--color-error)' }}></div>
+                    <div className="absolute top-4 left-4 z-10 px-4 py-2 bg-surface/90 backdrop-blur-md rounded-full shadow-sm flex items-center gap-2" style={{ border: '1px solid rgba(255,255,255,0.5)' }}>
+                      <div className="w-2 h-2 rounded-full bg-[#DC2626] animate-pulse" style={{ backgroundColor: '#DC2626' }}></div>
                       <span className="font-mono text-xs uppercase tracking-wider font-bold text-on-surface">Live Splicing Heatmap</span>
                     </div>
                     <img alt="Mel-Spectrogram Forensic Heatmap" className="w-full h-48 object-cover rounded-xl shadow-inner border block group-hover:scale-105 transition-transform duration-700" style={{ borderColor: 'rgba(219,218,217,0.4)' }} src={scanResult.heatmap_png} />
@@ -183,16 +190,16 @@ export function DeepScanResults({ callId = "ACC-1001" }) {
                   className="relative z-10 w-full neo-raised text-white py-5 px-6 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-lg hover:brightness-110 active:scale-[0.98] transition-all group"
                   style={{ backgroundColor: actionBg, color: '#fff' }}
                 >
-                  <div className="flex items-center justify-center gap-2.5 flex-wrap text-center">
+                  <div className="flex items-center justify-center gap-3 flex-wrap text-center">
                     <ShieldAlert size={22} color="#ffffff" className="shrink-0" />
                     <span className="font-headline-md text-white text-base tracking-wide uppercase font-bold text-center">
                       {scanResult.recommended_action.replace(/_/g, ' ')}
                     </span>
                   </div>
-                  <span className="font-mono text-white/90 text-xs tracking-wider uppercase font-semibold mt-1 px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}>
+                  <span className="font-mono text-white/90 text-xs tracking-wider uppercase font-semibold mt-1 px-2 py-1 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}>
                     {scanResult.recommended_action}
                   </span>
-                  <span className="font-label-sm text-white/90 text-xs tracking-wide font-normal mt-0.5 text-center">
+                  <span className="font-label-sm text-white/90 text-xs tracking-wide font-normal mt-1 text-center">
                     Automated protocol applied to Session {callId}
                   </span>
                 </button>

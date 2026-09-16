@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Shield, LayoutDashboard, Activity, Gavel, Network, History } from 'lucide-react';
+import { Shield, LayoutDashboard, Activity, Gavel, Network, History, Bot } from 'lucide-react';
 import './Sidebar.css';
 
 export function Sidebar() {
   const navItems = [
     { to: "/", icon: LayoutDashboard, label: "Overview" },
     { to: "/monitor", icon: Activity, label: "Live Monitor" },
+    { to: "/compliance-bot", icon: Bot, label: "Compliance Bot (Beta)" },
     { to: "/deep-scan", icon: Gavel, label: "Deep Scan" },
     { to: "/alerts", icon: Network, label: "Alerts" },
     { to: "/audit", icon: History, label: "Audit Logs" },

@@ -7,37 +7,31 @@ import {
   Ban,
   ShieldAlert,
   BrainCircuit,
-  Mic,
-  Bell,
-  Search
+  Bot
 } from 'lucide-react';
 import { RiskGauge } from '../components/RiskGauge';
 import { useLiveCallStream } from '../hooks/useLiveCallStream';
-import DemoFallbackButton from '../components/DemoFallbackButton';
-import { useNavigate } from 'react-router-dom';
 import './LiveCallMonitor.css';
 
 const BFF_HTTP_URL = import.meta.env.VITE_BFF_HTTP_URL || "http://localhost:4000";
-const ENGINE_HTTP_URL = import.meta.env.VITE_ENGINE_HTTP_URL || "http://localhost:8000";
 
-export function LiveCallMonitor({ onRunDeepScan }) {
+export function ComplianceBotSandbox() {
   const transcriptRef = useRef(null);
-  const navigate = useNavigate();
-  const [alertSending, setAlertSending] = useState(false);
-  const [alertStatus, setAlertStatus] = useState(null);
+  const [activeCallId, setActiveCallId] = useState(null);
+  const [isSimulating, setIsSimulating] = useState(false);
   const [policyProfile, setPolicyProfile] = useState("Loading...");
 
-  const callId = "ACC-1001";
-
   useEffect(() => {
+    if (!activeCallId) return;
+
     async function fetchSession() {
       try {
-        let res = await fetch(`${BFF_HTTP_URL}/session/${callId}`);
+        let res = await fetch(`${BFF_HTTP_URL}/session/${activeCallId}`);
         if (res.status === 404) {
           res = await fetch(`${BFF_HTTP_URL}/api/session/init`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ callId, accountId: callId })
+            body: JSON.stringify({ callId: activeCallId, accountId: activeCallId })
           });
         }
         if (res.ok) {
@@ -49,18 +43,14 @@ export function LiveCallMonitor({ onRunDeepScan }) {
       }
     }
     fetchSession();
-  }, [callId]);
+  }, [activeCallId]);
 
-  // Unified WebRTC audio transmission + WebSocket risk updates[cite: 1, 3]
   const {
     risk_score,
     layer2_triggered,
-    isStreaming,
-    startStreaming,
-    stopStreaming,
     transcriptBuffer,
     connectionState
-  } = useLiveCallStream(callId);
+  } = useLiveCallStream(activeCallId || "UNKNOWN");
 
   useEffect(() => {
     if (transcriptRef.current) {
@@ -73,49 +63,19 @@ export function LiveCallMonitor({ onRunDeepScan }) {
     }
   }, [transcriptBuffer]);
 
-  async function handleSendTestAlert() {
-    setAlertSending(true);
-    setAlertStatus(null);
+  async function handleSimulateBot() {
+    setIsSimulating(true);
     try {
-      const res = await fetch(`${BFF_HTTP_URL}/test-alert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ call_id: callId })
-      });
-      if (res.ok) {
-        setAlertStatus("Dispatched");
+      const res = await fetch(`${BFF_HTTP_URL}/simulate-bot`, { method: 'POST' });
+      const data = await res.json();
+      if (data.status === "streaming_started") {
+        setActiveCallId(data.call_id);
       } else {
-        setAlertStatus("Failed");
+        setIsSimulating(false); // Only re-enable if it failed
       }
     } catch (err) {
-      console.error("Manual test alert failed to dispatch:", err);
-      setAlertStatus("Error");
-    } finally {
-      setAlertSending(false);
-      setTimeout(() => setAlertStatus(null), 3000);
-    }
-  }
-
-  async function handleDemoActivate() {
-    try {
-      const res = await fetch('/demo-fallback.wav');
-      const blob = await res.blob();
-      const formData = new FormData();
-      formData.append('audio', blob, 'demo-fallback.wav');
-      
-      const uploadRes = await fetch(`${ENGINE_HTTP_URL}/analyze/file`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (uploadRes.ok) {
-        const result = await uploadRes.json();
-        navigate('/deep-scan', { state: result });
-      } else {
-        console.error("Demo upload failed");
-      }
-    } catch (err) {
-      console.error("Error loading demo fallback clip:", err);
+      console.error("Simulation failed:", err);
+      setIsSimulating(false);
     }
   }
 
@@ -124,52 +84,24 @@ export function LiveCallMonitor({ onRunDeepScan }) {
       {/* Header */}
       <div className="lcm-header">
         <div>
-          <h1 className="text-display-lg text-on-surface">Live Monitor</h1>
+          <h1 className="text-display-lg text-on-surface">Compliance Bot Sandbox (Teams/Zoom)</h1>
           <p className="text-body-lg text-on-surface-variant flex items-center gap-2 mt-2">
-            <span className="lcm-pulse-dot"></span>
-            Active Session: {callId}
+            <span className={activeCallId ? "lcm-pulse-dot" : "w-2 h-2 rounded-full bg-surface-dim"}></span>
+            Active Session: {activeCallId || "None"}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <DemoFallbackButton onActivate={handleDemoActivate} />
-
           <button
-            onClick={handleSendTestAlert}
-            disabled={alertSending}
-            className="neo-inset px-4 py-2 rounded-lg text-label-md text-on-surface-variant hover:text-primary flex items-center gap-2"
-            style={{ border: 'none', cursor: alertSending ? 'not-allowed' : 'pointer' }}
-            title="Trigger manual test SMS/Slack alert via Node BFF"
+            onClick={handleSimulateBot}
+            disabled={isSimulating || activeCallId}
+            className={`neo-button-primary px-6 py-3 rounded-xl flex items-center gap-2 ${activeCallId ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            <Bell size={16} />
-            <span>{alertStatus ? alertStatus : alertSending ? "Sending..." : "Send Test Alert"}</span>
+            <Bot size={20} />
+            <span>{activeCallId ? "Simulation Running..." : isSimulating ? "Connecting..." : "Simulate Meeting Bot"}</span>
           </button>
 
-          {/* WebRTC Streaming Toggle for Direct Audio Ingestion[cite: 1, 2] */}
-          <button
-            onClick={isStreaming ? stopStreaming : startStreaming}
-            className={`neo-raised px-4 py-2 rounded-lg flex items-center gap-2 ${isStreaming ? 'text-[#DC2626]' : 'text-primary'}`}
-            style={{ border: 'none', cursor: 'pointer' }}
-          >
-            <Mic size={18} />
-            <span className="text-label-md font-bold">
-              {isStreaming ? "Stop Mic Stream" : "Start Mic Stream"}
-            </span>
-          </button>
-
-          {/* Run Deep Scan Action Button[cite: 1] */}
-          {onRunDeepScan && (
-            <button
-              onClick={() => onRunDeepScan(callId)}
-              className="neo-raised px-4 py-2 rounded-lg flex items-center gap-2 text-primary font-bold"
-              style={{ border: 'none', cursor: 'pointer' }}
-            >
-              <Search size={16} />
-              <span>Run Deep Scan</span>
-            </button>
-          )}
-
-          {/* Active Risk Policy Profile Badge[cite: 1] */}
+          {/* Active Risk Policy Profile Badge */}
           <div className="lcm-policy-badge neo-raised">
             <span className="text-label-sm text-on-surface-variant tracking-widest">POLICY TIER</span>
             <div className="lcm-policy-inner">
@@ -210,31 +142,31 @@ export function LiveCallMonitor({ onRunDeepScan }) {
 
           <div className="lcm-caller-card neo-raised mt-4">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-label-md uppercase tracking-widest text-on-surface">Caller Identity</h3>
-              <User className="text-on-surface-variant" size={20} />
+              <h3 className="text-label-md uppercase tracking-widest text-on-surface">Bot Identity</h3>
+              <Bot className="text-on-surface-variant" size={20} />
             </div>
 
             <div className="lcm-caller-profile mb-6">
               <div className="lcm-caller-avatar neo-inset">
                 <div className="lcm-avatar-inner text-on-surface-variant">
-                  <User size={32} />
+                  <Bot size={32} />
                 </div>
               </div>
               <div>
-                <p className="text-headline-md text-on-surface">Michael T. Chen</p>
-                <p className="text-body-md text-on-surface-variant">Customer since 2018</p>
+                <p className="text-headline-md text-on-surface">Compliance Notetaker</p>
+                <p className="text-body-md text-on-surface-variant">Meeting Bot • v2.1</p>
               </div>
             </div>
 
             <div className="lcm-caller-stats">
               <div className="lcm-stat-box neo-inset">
-                <p className="text-label-sm text-on-surface-variant mb-1">Auth Method</p>
-                <p className="text-label-md text-on-surface">OTP via SMS</p>
+                <p className="text-label-sm text-on-surface-variant mb-1">Platform</p>
+                <p className="text-label-md text-on-surface">Microsoft Teams</p>
               </div>
               <div className="lcm-stat-box neo-inset">
-                <p className="text-label-sm text-on-surface-variant mb-1">ANI Match</p>
+                <p className="text-label-sm text-on-surface-variant mb-1">Ingress Auth</p>
                 <p className="text-label-md text-[#DC2626] flex items-center gap-2">
-                  <Ban size={16} /> No Match
+                  <Ban size={16} /> Unknown Host
                 </p>
               </div>
             </div>
@@ -251,7 +183,7 @@ export function LiveCallMonitor({ onRunDeepScan }) {
               <div>
                 <h2 className="text-headline-md text-on-surface">Live Transcription</h2>
                 <p className="text-label-sm text-on-surface-variant">
-                  {isStreaming ? "Streaming live audio buffer..." : "Mic stream inactive"}
+                  {activeCallId ? "Streaming bot audio buffer..." : "Awaiting bot join..."}
                 </p>
               </div>
             </div>
@@ -267,9 +199,11 @@ export function LiveCallMonitor({ onRunDeepScan }) {
             <span className="lcm-watermark text-display-lg">CONFIDENTIAL</span>
 
             <div className="lcm-messages z-10 relative space-y-6">
-              <div className="flex justify-center mb-4">
-                <span className="lcm-sys-event text-label-sm">Call connected at 14:02:11 PST</span>
-              </div>
+              {activeCallId && (
+                <div className="flex justify-center mb-4">
+                  <span className="lcm-sys-event text-label-sm">Bot joined meeting at {new Date().toLocaleTimeString()}</span>
+                </div>
+              )}
 
               {/* Dynamic Live Transcript */}
               {transcriptBuffer && (
@@ -285,7 +219,7 @@ export function LiveCallMonitor({ onRunDeepScan }) {
               )}
 
               {/* Streaming Indicator */}
-              {isStreaming && (
+              {activeCallId && (
                 <div className="lcm-msg lcm-agent" style={{ opacity: 0.5 }}>
                   <div className="lcm-msg-avatar neo-raised text-on-surface-variant"><User size={20} /></div>
                   <div className="lcm-bubble lcm-bubble-agent flex gap-1 items-center">
@@ -300,10 +234,10 @@ export function LiveCallMonitor({ onRunDeepScan }) {
 
           <div className="lcm-footer">
             <button className="lcm-footer-btn neo-inset text-on-surface hover:text-primary">
-              <MicOff size={18} /> Mute Agent
+              <MicOff size={18} /> Kick Bot
             </button>
             <button className="lcm-footer-btn lcm-btn-alert neo-raised text-[#DC2626]">
-              <Ban size={18} /> Intercept Call
+              <Ban size={18} /> Kill Meeting
             </button>
           </div>
         </div>

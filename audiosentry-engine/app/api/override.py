@@ -4,8 +4,10 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/override", tags=["override"])
 
 class OverrideRequest(BaseModel):
-    reason: str
-    agent_id: str
+    notes: str
+    decision: str
+    timestamp: str
+    agent_id: str = "agent-1"
 
 @router.post("/{call_id}")
 def override_risk(call_id: str, request: OverrideRequest):

@@ -7,6 +7,7 @@ import { AlertBannerStates } from './screens/AlertBannerStates';
 import { Enrollment } from './screens/Enrollment';
 import { OverrideAuditLog } from './screens/OverrideAuditLog';
 import { FileUploadTestMode } from './screens/FileUploadTestMode';
+import { ComplianceBotSandbox } from './screens/ComplianceBotSandbox';
 
 // Wrapper to inject React Router navigation into the button
 function MonitorWithNav() {
@@ -26,6 +27,7 @@ function App() {
           <Route path="/enrollment" element={<Enrollment />} />
           <Route path="/audit" element={<OverrideAuditLog />} />
           <Route path="/test" element={<FileUploadTestMode />} />
+          <Route path="/compliance-bot" element={<ComplianceBotSandbox />} />
         </Routes>
       </Layout>
     </Router>
