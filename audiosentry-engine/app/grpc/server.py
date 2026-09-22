@@ -18,6 +18,9 @@ from app.grpc import voice_integrity_pb2_grpc as pb2_grpc
 from app.models.policy import load_policy
 from app.models import fusion as fusion_engine
 from app.models.xai import generate_heatmap
+from app.audio_state import update_buffer
+from app.models import acoustic
+import numpy as np
 
 dummy_model = nn.Linear(10, 1)
 dummy_tensor = torch.randn(1, 1, 10, 10)
@@ -52,18 +55,32 @@ class VoiceIntegrityService(pb2_grpc.VoiceIntegrityServiceServicer):
     def StreamAudio(self, request_iterator, context):
         for chunk in request_iterator:
             try:
-                features = {"liveness_score": 85.0, "speaker_similarity": None}
+                # 1. Direct Float32 Decode (Frontend now sends raw PCM bytes)
+                raw_array = np.frombuffer(chunk.audio_data, dtype=np.float32)
+                tensor_data = torch.from_numpy(raw_array)
+                update_buffer(chunk.call_id, tensor_data)
+                
+                # 2. Evaluate Layer 1 Acoustic Score
+                a_score = acoustic.classify(tensor_data)
+                
+                # 3. Extract Features (imputing None for missing signals)
+                features = {
+                    "acoustic_score": a_score,
+                    "liveness_score": 85.0, # Placeholder if still stubbed
+                    "speaker_similarity": None,
+                    "llm_semantic_score": None,
+                    "prosody_score": None
+                }
+                
                 result = fusion_engine.predict_risk(features=features, policy=load_policy("strict"))
-                score = result["risk_score"]
-                 
+                
                 yield pb2.RiskUpdate(
                     call_id=chunk.call_id, 
-                    risk_score=int(score), 
-                    layer2_triggered=score > 60,
-                    transcript_fragment=""
+                    risk_score=int(result["risk_score"]), 
+                    layer2_triggered=int(a_score) > 60
                 )
             except Exception as e:
-                logging.warning(f"Dropped malformed audio chunk - {e}")
+                logging.error(f"Error processing chunk for call_id {getattr(chunk, 'call_id', 'unknown')}: {e}")
                 continue
 
     def Enroll(self, request, context):

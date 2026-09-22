@@ -3,8 +3,9 @@ from app.api.schemas import CallMetadata
 from app.models.policy import select_policy_for_metadata, load_policy
 from app.models import fusion
 from app.models.xai import generate_heatmap
-from app.models.acoustic import get_classifier
+from app.models.acoustic import get_classifier, classify
 import torch
+from app.audio_state import get_buffer
 
 router = APIRouter(prefix="/deepscan", tags=["deepscan"])
 
@@ -24,16 +25,18 @@ def post_deepscan(call_id: str, metadata: CallMetadata):
         "historical_fraud_count": len(meta_dict.get("historical_fraud_indicators", [])),
     }
     
-    # Hardcode acoustic_score = 85 to trigger the anomaly branch for frontend verification
-    acoustic_score = 85
-    features["acoustic_score"] = acoustic_score
-
     result = fusion.predict_risk(features, policy=load_policy("balanced"))
     
     heatmap_png = None
-    if acoustic_score > 60:
-        dummy_tensor = torch.randn(1, 16000)
-        heatmap_png = generate_heatmap(get_classifier(), dummy_tensor)
+    
+    real_tensor = get_buffer(call_id)
+    if real_tensor is not None:
+        # Evaluate acoustic risk specifically, isolated from metadata
+        acoustic_score = classify(real_tensor)
+        policy = load_policy("balanced")
+        
+        if acoustic_score > policy.get("layer1_escalation_threshold", 60):
+            heatmap_png = generate_heatmap(get_classifier(), real_tensor.unsqueeze(0))
     
     return {
         "risk_score": result["risk_score"],

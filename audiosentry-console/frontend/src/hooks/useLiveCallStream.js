@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState } from "react";
+import { usePCMStream } from "./usePCMStream";
 
 const ENGINE_WS_URL = import.meta.env.VITE_ENGINE_WS_URL || "ws://localhost:8000";
 
-export function useLiveCallStream(callId) {
+export function useLiveCallStream(callId, crmMetadata) {
     const [risk, setRisk] = useState({ risk_score: 0, layer2_triggered: false });
     const [transcriptBuffer, setTranscriptBuffer] = useState("");
     const [isStreaming, setIsStreaming] = useState(false);
     const [connectionState, setConnectionState] = useState("connecting"); // connecting, connected, reconnecting, disconnected
 
     const wsRef = useRef(null);
-    const mediaRecorderRef = useRef(null);
-    const audioStreamRef = useRef(null);
     const reconnectAttempt = useRef(0);
+    const { startStream, stopPCMStream } = usePCMStream();
 
     // 1. Maintain WebSocket Connection for Risk Updates[cite: 1]
     useEffect(() => {
-        if (!callId) return;
+        if (!callId || !crmMetadata) return;
         let cancelled = false;
 
         function connect() {
@@ -28,6 +28,13 @@ export function useLiveCallStream(callId) {
                 if (cancelled) return;
                 setConnectionState("connected");
                 reconnectAttempt.current = 0; // reset on success
+
+                // Send the initial JSON configuration payload with CRM metadata
+                ws.send(JSON.stringify({
+                    type: "config",
+                    call_id: callId,
+                    metadata: crmMetadata
+                }));
             };
 
             ws.onmessage = (event) => {
@@ -60,46 +67,29 @@ export function useLiveCallStream(callId) {
                 wsRef.current.close();
             }
         };
-    }, [callId]);
+    }, [callId, crmMetadata]);
 
-    // 2. Microphone Capture & Audio Transmission via WebRTC
+    // 2. Microphone Capture & Audio Transmission via Web Audio API
     async function startStreaming() {
         if (!callId || isStreaming) return;
 
         try {
-            // Request microphone access
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioStreamRef.current = stream;
-
-            // Initialize MediaRecorder for 2-second rolling windows per architecture[cite: 1, 3]
-            const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-
-            recorder.ondataavailable = async (event) => {
-                if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
-                    // Send binary audio chunks directly over the active WS connection
-                    const buffer = await event.data.arrayBuffer();
-                    wsRef.current.send(buffer);
+            await startStream((pcmBuffer) => {
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(pcmBuffer);
                 }
-            };
-
-            // Start recording and emit chunks every 2000ms
-            recorder.start(2000);
-            mediaRecorderRef.current = recorder;
+            });
             setIsStreaming(true);
 
         } catch (err) {
             console.error("Microphone access denied or unavailable:", err);
             setIsStreaming(false);
+            throw err;
         }
     }
 
     function stopStreaming() {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-            mediaRecorderRef.current.stop();
-        }
-        if (audioStreamRef.current) {
-            audioStreamRef.current.getTracks().forEach(track => track.stop());
-        }
+        stopPCMStream();
         setIsStreaming(false);
     }
 

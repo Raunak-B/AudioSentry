@@ -1,37 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, AlertTriangle, ShieldCheck, Search, Activity, Fingerprint, ShieldAlert, Cpu, Mic, Info } from 'lucide-react';
 import './DeepScanResults.css';
+import { lookupAccount } from '../lib/mockCrm.js';
 
 const ENGINE_HTTP_URL = import.meta.env.VITE_ENGINE_HTTP_URL || "http://localhost:8000";
 
-export function DeepScanResults({ callId = "ACC-1001" }) {
+export function DeepScanResults({ callId = "ACC-1001", callerProfile }) {
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [scanResult, setScanResult] = useState(null);
+
+  const metadata = callerProfile || lookupAccount(callId) || {
+    call_origin_risk: "low",
+    transaction_context: { transfer_value: 0, privilege_escalation: false },
+    historical_fraud_indicators: [],
+    customer_since: "Unknown",
+    recent_high_risk: false
+  };
 
   useEffect(() => {
     async function runDeepScan() {
       try {
-        const mockMetadata = {
-          call_origin_risk: "low",
-          transaction_context: { transfer_value: 0, privilege_escalation: false },
-          historical_fraud_indicators: []
-        };
+        setLoading(true);
+        setError(null);
 
         const res = await fetch(`${ENGINE_HTTP_URL}/deepscan/${callId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(mockMetadata)
+          body: JSON.stringify(metadata)
         });
 
         if (res.ok) {
           const data = await res.json();
-          setScanResult(data);
+          setScanResult({
+            risk_score: data.risk_score,
+            reason: data.reason,
+            recommended_action: data.recommended_action,
+            heatmap_png: data.heatmap_png
+          });
         } else {
-          console.error("Deep scan failed");
+          setError(`Deep scan failed with status: ${res.status}`);
         }
       } catch (err) {
-        console.error("Failed to run deep scan:", err);
+        setError("Failed to run deep scan due to network error.");
       } finally {
         setLoading(false);
       }
@@ -48,10 +60,10 @@ export function DeepScanResults({ callId = "ACC-1001" }) {
     );
   }
 
-  if (!scanResult) {
+  if (error || !scanResult) {
     return (
       <div className="dsr-container flex items-center justify-center min-h-[60vh]">
-        <div className="text-xl font-bold text-[var(--color-error)]">Failed to load Deep Scan Results.</div>
+        <div className="text-xl font-bold text-[var(--color-error)]">{error || "Failed to load Deep Scan Results."}</div>
       </div>
     );
   }
@@ -137,6 +149,31 @@ export function DeepScanResults({ callId = "ACC-1001" }) {
 
           {/* Visual Explainability & Action (5 Cols) */}
           <section className="lg:col-span-5 flex flex-col gap-6">
+
+            {/* Caller Risk Profile Summary Card */}
+            <div className="neo-raised p-6 rounded-[32px] bg-surface flex flex-col gap-4" style={{ border: '1px solid rgba(255,255,255,0.4)' }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-label-md text-on-surface font-bold">Caller Risk Profile</h3>
+                  <p className="font-label-sm text-on-surface-variant font-mono">CRM + Acoustic Fusion</p>
+                </div>
+                <span className="px-3 py-1 neo-inset rounded-full font-label-sm font-semibold text-primary uppercase tracking-wide">Metadata</span>
+              </div>
+              <div className="flex flex-col gap-3">
+                <div className="flex justify-between items-center neo-inset p-3 rounded-xl">
+                  <span className="text-label-sm text-on-surface-variant flex items-center gap-2"><User size={16} /> Account Age</span>
+                  <span className="text-label-md font-bold text-on-surface">{metadata?.customer_since ? `Since ${metadata.customer_since}` : 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between items-center neo-inset p-3 rounded-xl">
+                  <span className="text-label-sm text-on-surface-variant flex items-center gap-2"><Activity size={16} /> Origin Risk</span>
+                  <span className={`text-label-md font-bold capitalize ${metadata?.call_origin_risk === 'high' ? 'text-[var(--color-error)]' : metadata?.call_origin_risk === 'medium' ? 'text-[var(--color-warning)]' : 'text-[#34a853]'}`}>{metadata?.call_origin_risk || 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between items-center neo-inset p-3 rounded-xl">
+                  <span className="text-label-sm text-on-surface-variant flex items-center gap-2"><ShieldAlert size={16} /> Recent High-Risk Tx</span>
+                  <span className={`text-label-md font-bold ${metadata?.recent_high_risk ? 'text-[var(--color-error)]' : 'text-[#34a853]'}`}>{metadata?.recent_high_risk ? 'Detected' : 'None'}</span>
+                </div>
+              </div>
+            </div>
 
             {/* Explainability Panel */}
             <div className="neo-raised p-6 rounded-[32px] bg-surface flex flex-col gap-4" style={{ border: '1px solid rgba(255,255,255,0.4)' }}>
