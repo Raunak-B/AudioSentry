@@ -64,3 +64,20 @@ def test_fusion_handles_multiple_missing_signals():
     assert isinstance(result, dict)
     assert "risk_score" in result
     assert "recommended_action" in result
+
+
+def test_fusion_handles_missing_crm_metadata():
+    features = get_base_features()
+    # Intentionally drop CRM metadata
+    features["call_origin_risk"] = None
+    features["transfer_value"] = None
+    features["privilege_escalation"] = None
+    features["historical_fraud_count"] = None
+    
+    policy = load_policy("balanced")
+    
+    result = fusion.predict_risk(features, policy)
+    
+    assert isinstance(result, dict)
+    assert "risk_score" in result
+    assert "recommended_action" in result

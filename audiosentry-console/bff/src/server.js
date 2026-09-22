@@ -1,19 +1,18 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { sendSmsAlert, sendSlackAlert } from "./alerts.js";
 import { lookupAccount } from "./mockCrm.js";
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.urlencoded({ extended: false })); // Twilio posts form-encoded
 app.use(express.json());
 
 // In-memory session state — fine for a 4-week demo, swap for Redis in production
 // Shape: call_id -> { status, current_risk, policy_profile, transcript_buffer }
 const sessions = new Map();
+const alertThrottleCache = new Map();
 
 export function initializeSession(callId, initialData = {}) {
     const session = {
@@ -29,7 +28,8 @@ export function initializeSession(callId, initialData = {}) {
 
 // --- Week 2, Days 6-8: BFF Session State Management ---
 app.post("/api/session/init", (req, res) => {
-    const { callId, accountId = "ACC-1001" } = req.body;
+    const callId = req.headers["x-call-id"] || req.body.callId;
+    const { accountId = "ACC-1001" } = req.body;
 
     const account = lookupAccount(accountId);
     let policyProfile = "lenient";
@@ -48,7 +48,10 @@ app.post("/api/session/init", (req, res) => {
         accountId: accountId,
     });
 
-    console.log(`Session initialized for call: ${callId} with policy: ${policyProfile}`);
+    console.log(JSON.stringify({
+        call_id: callId,
+        message: `Session initialized with policy: ${policyProfile}`
+    }));
     res.json({ status: "initialized", callId, policy_profile: policyProfile });
 });
 
@@ -58,35 +61,123 @@ app.get("/session/:call_id", (req, res) => {
     res.json(session);
 });
 
+async function sendSlackAlert({ call_id, acoustic_score, metadata }) {
+    if (!process.env.SLACK_WEBHOOK_URL) {
+        console.warn(JSON.stringify({
+            call_id,
+            message: "No SLACK_WEBHOOK_URL set in .env; skipping Slack dispatch."
+        }));
+        return null;
+    }
+
+    try {
+        const payload = {
+            blocks: [
+                {
+                    type: "header",
+                    text: {
+                        type: "plain_text",
+                        text: "🚨 High-Risk Synthetic Audio Detected",
+                        emoji: true
+                    }
+                },
+                {
+                    type: "section",
+                    fields: [
+                        {
+                            type: "mrkdwn",
+                            text: `*Call ID:*\n${call_id}`
+                        },
+                        {
+                            type: "mrkdwn",
+                            text: `*Acoustic Score:*\n${acoustic_score}`
+                        }
+                    ]
+                },
+                {
+                    type: "section",
+                    text: {
+                        type: "mrkdwn",
+                        text: `*Metadata:*\n\`\`\`${JSON.stringify(metadata, null, 2)}\`\`\``
+                    }
+                }
+            ]
+        };
+
+        const response = await fetch(process.env.SLACK_WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            console.error(JSON.stringify({
+                call_id,
+                message: `Slack Alert failed with status ${response.status}: ${response.statusText}`
+            }));
+        }
+        return response;
+    } catch (error) {
+        console.error(JSON.stringify({
+            call_id,
+            message: `Slack Alert failed: ${error.message}`
+        }));
+        return null;
+    }
+}
+
 // --- Week 1, Days 3-5: Manual Test Alert Route ---
 app.post("/test-alert", async (req, res) => {
-    const callId = req.body.call_id || "UNKNOWN";
+    const callId = req.headers["x-call-id"] || req.body.call_id || "UNKNOWN";
     const session = sessions.get(callId);
     const riskScore = session ? session.current_risk : "N/A";
     const reason = "Manual test alert triggered via console.";
     
-    const testMessage = `TEST: AudioSentry manual alert triggered for ${callId} (Risk: ${riskScore}).`;
-
-    console.log("Dispatching manual test alerts...");
-    await sendSlackAlert(callId, riskScore, reason);
-
-    if (process.env.ALERT_PHONE_NUMBER) {
-        await sendSmsAlert(process.env.ALERT_PHONE_NUMBER, testMessage);
-    } else {
-        console.warn("No ALERT_PHONE_NUMBER set in .env; skipping SMS dispatch.");
-    }
+    console.log(JSON.stringify({
+        call_id: callId,
+        message: "Dispatching manual test alerts..."
+    }));
+    await sendSlackAlert({
+        call_id: callId,
+        acoustic_score: riskScore,
+        metadata: { reason, session_status: session ? session.status : "unknown" }
+    });
 
     res.json({ status: "alerts_dispatched" });
 });
 
-// --- Day 1-2 Scaffold: Twilio Webhook (Currently bypassed due to trial limits) ---
-app.post("/webhooks/twilio", (req, res) => {
-    console.log("Twilio webhook hit:", req.body);
-    // TwiML response: tell Twilio to start streaming this call's audio to our WS
-    res.type("text/xml");
-    res.send(
-        `<Response><Start><Stream url="wss://${process.env.PUBLIC_WS_HOST}/stream" /></Start></Response>`
-    );
+// --- Final Analysis Payload Handler from Engine ---
+app.post("/webhooks/engine", (req, res) => {
+    const { call_id, acoustic_score, metadata } = req.body;
+
+    const session = sessions.get(call_id);
+    if (session) {
+        session.current_risk = acoustic_score;
+    }
+
+    if (acoustic_score > 0.85) {
+        const now = Date.now();
+        const lastAlertTime = alertThrottleCache.get(call_id) || 0;
+
+        // Throttle Slack alerts to once every 60 seconds per call_id
+        if (now - lastAlertTime > 60000) {
+            alertThrottleCache.set(call_id, now);
+            // Fire-and-forget async execution
+            sendSlackAlert({ call_id, acoustic_score, metadata }).catch(err => {
+                console.error(JSON.stringify({
+                    call_id,
+                    message: `Fire-and-forget Slack alert failed: ${err.message}`
+                }));
+            });
+        } else {
+            console.log(JSON.stringify({
+                call_id,
+                message: `Throttled Slack alert (last alert was ${Math.round((now - lastAlertTime) / 1000)}s ago)`
+            }));
+        }
+    }
+
+    res.json({ status: "received" });
 });
 
 app.get("/health", (_req, res) => res.json({ status: "ok", service: "audiosentry-bff" }));

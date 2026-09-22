@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { RiskGauge } from '../components/RiskGauge';
 import { useLiveCallStream } from '../hooks/useLiveCallStream';
+import { lookupAccount } from '../lib/mockCrm.js';
 import './LiveCallMonitor.css';
 
 const BFF_HTTP_URL = import.meta.env.VITE_BFF_HTTP_URL || "http://localhost:4000";
@@ -22,18 +23,70 @@ export function LiveCallMonitor({ onRunDeepScan }) {
   const [alertSending, setAlertSending] = useState(false);
   const [alertStatus, setAlertStatus] = useState(null);
   const [policyProfile, setPolicyProfile] = useState("Loading...");
+  const [localTranscript, setLocalTranscript] = useState("");
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const [callStarted, setCallStarted] = useState(false);
+  const [micError, setMicError] = useState(null);
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event) => {
+        let finalTrans = "";
+        let interimTrans = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            finalTrans += event.results[i][0].transcript + " ";
+          } else {
+            interimTrans += event.results[i][0].transcript;
+          }
+        }
+        if (finalTrans) {
+          setLocalTranscript(prev => prev + finalTrans);
+        }
+        setInterimTranscript(interimTrans);
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, []);
 
   const callId = "ACC-1001";
+
+  const [callerProfile, setCallerProfile] = useState(null);
+
+  useEffect(() => {
+    async function loadProfile() {
+      await new Promise(resolve => setTimeout(resolve, 600)); // Simulate latency
+      const profile = lookupAccount(callId);
+      setCallerProfile(profile);
+    }
+    loadProfile();
+  }, [callId]);
 
   useEffect(() => {
     async function fetchSession() {
       try {
-        let res = await fetch(`${BFF_HTTP_URL}/session/${callId}`);
+        let res = await fetch(`${BFF_HTTP_URL}/session/${callId}`, {
+          headers: { "X-Call-ID": callId }
+        });
         if (res.status === 404) {
           res = await fetch(`${BFF_HTTP_URL}/api/session/init`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ callId, accountId: callId })
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "X-Call-ID": callId
+            },
+            body: JSON.stringify({ callId, accountId: "ACC-1001" })
           });
         }
         if (res.ok) {
@@ -56,7 +109,23 @@ export function LiveCallMonitor({ onRunDeepScan }) {
     stopStreaming,
     transcriptBuffer,
     connectionState
-  } = useLiveCallStream(callId);
+  } = useLiveCallStream(callId, callerProfile);
+
+  useEffect(() => {
+    if (isStreaming && recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (err) {
+        console.error("Could not start speech recognition:", err);
+      }
+    } else if (!isStreaming && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (err) {
+        console.error("Could not stop speech recognition:", err);
+      }
+    }
+  }, [isStreaming]);
 
   useEffect(() => {
     if (transcriptRef.current) {
@@ -67,15 +136,18 @@ export function LiveCallMonitor({ onRunDeepScan }) {
         });
       }, 100);
     }
-  }, [transcriptBuffer]);
+  }, [localTranscript, interimTranscript]);
 
   async function handleSendTestAlert() {
     setAlertSending(true);
     setAlertStatus(null);
     try {
       const res = await fetch(`${BFF_HTTP_URL}/test-alert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Call-ID": callId
+        },
         body: JSON.stringify({ call_id: callId })
       });
       if (res.ok) {
@@ -90,6 +162,54 @@ export function LiveCallMonitor({ onRunDeepScan }) {
       setAlertSending(false);
       setTimeout(() => setAlertStatus(null), 3000);
     }
+  }
+
+  const handleStartCall = async () => {
+    setMicError(null);
+    try {
+      await startStreaming();
+      setCallStarted(true);
+    } catch (err) {
+      setMicError("Microphone access denied. Please allow microphone permissions and try again.");
+    }
+  };
+
+  if (!callStarted) {
+    return (
+      <div className="lcm-container flex flex-col items-center justify-center" style={{ minHeight: '80vh' }}>
+         <div className="neo-raised p-8 text-center max-w-md w-full">
+           {micError ? (
+             <>
+               <ShieldAlert size={48} className="text-error mx-auto mb-4" />
+               <h2 className="text-headline-md text-error mb-2">Access Denied</h2>
+               <p className="text-body-md text-on-surface-variant mb-6">{micError}</p>
+               <button 
+                 onClick={handleStartCall}
+                 className="neo-inset px-6 py-3 rounded-lg text-primary font-bold w-full"
+                 style={{ border: 'none', cursor: 'pointer' }}
+               >
+                 Try Again
+               </button>
+             </>
+           ) : (
+             <>
+               <Mic size={48} className="text-primary mx-auto mb-4" />
+               <h2 className="text-headline-md text-on-surface mb-2">Ready for Call</h2>
+               <p className="text-body-md text-on-surface-variant mb-6">
+                 Initialize the audio stream and transcription engine to begin monitoring.
+               </p>
+               <button 
+                 onClick={handleStartCall}
+                 className="neo-raised px-6 py-3 rounded-lg text-primary font-bold w-full text-lg"
+                 style={{ border: 'none', cursor: 'pointer' }}
+               >
+                 Start Call
+               </button>
+             </>
+           )}
+         </div>
+      </div>
+    );
   }
 
   return (
@@ -193,21 +313,35 @@ export function LiveCallMonitor({ onRunDeepScan }) {
                 </div>
               </div>
               <div>
-                <p className="text-headline-md text-on-surface">Michael T. Chen</p>
-                <p className="text-body-md text-on-surface-variant">Customer since 2018</p>
+                <p className="text-headline-md text-on-surface">{callerProfile?.name || "Loading..."}</p>
+                <p className="text-body-md text-on-surface-variant">Customer since {callerProfile?.customer_since || "..."}</p>
               </div>
             </div>
 
-            <div className="lcm-caller-stats">
-              <div className="lcm-stat-box neo-inset">
-                <p className="text-label-sm text-on-surface-variant mb-1">Auth Method</p>
-                <p className="text-label-md text-on-surface">OTP via SMS</p>
+            <div className="lcm-caller-stats flex flex-col gap-4">
+              <div className="flex gap-4">
+                <div className="lcm-stat-box neo-inset flex-1">
+                  <p className="text-label-sm text-on-surface-variant mb-1">Auth Method</p>
+                  <p className="text-label-md text-on-surface">{callerProfile?.auth_method || "..."}</p>
+                </div>
+                <div className="lcm-stat-box neo-inset flex-1">
+                  <p className="text-label-sm text-on-surface-variant mb-1">ANI Match</p>
+                  {callerProfile?.ani_match ? (
+                    <p className="text-label-md text-success flex items-center gap-1">
+                      Matched
+                    </p>
+                  ) : (
+                    <p className="text-label-md text-error flex items-center gap-1">
+                      <Ban size={16} /> No Match
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="lcm-stat-box neo-inset">
-                <p className="text-label-sm text-on-surface-variant mb-1">ANI Match</p>
-                <p className="text-label-md text-error flex items-center gap-1">
-                  <Ban size={16} /> No Match
-                </p>
+              <div className="flex gap-4">
+                <div className="lcm-stat-box neo-inset flex-1">
+                  <p className="text-label-sm text-on-surface-variant mb-1">Device History</p>
+                  <p className="text-label-md text-on-surface">{callerProfile?.device_history || "..."}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -244,13 +378,14 @@ export function LiveCallMonitor({ onRunDeepScan }) {
               </div>
 
               {/* Dynamic Live Transcript */}
-              {transcriptBuffer && (
+              {(localTranscript || interimTranscript) && (
                 <div className="lcm-msg lcm-agent">
                   <div className="lcm-msg-avatar neo-raised text-on-surface-variant"><BrainCircuit size={20} /></div>
                   <div className="lcm-msg-content" style={{ width: '100%' }}>
                     <span className="text-label-sm text-on-surface-variant ml-2 mb-1 block">Live Feed</span>
                     <div className="lcm-bubble lcm-bubble-agent text-body-md text-on-surface" style={{ whiteSpace: 'pre-wrap' }}>
-                      {transcriptBuffer}
+                      {localTranscript}
+                      <span style={{ opacity: 0.6 }}>{interimTranscript}</span>
                     </div>
                   </div>
                 </div>
